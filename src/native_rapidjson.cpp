@@ -191,7 +191,7 @@ private:
             case rapidjson::kArrayType: {
                 rapid_arrray f{env, Napi::Array::New(env, d.Size())};
                 return f(d);
-            } break;
+            };
             case rapidjson::kStringType: {
                 rapid_string s{env};
                 return s(d);
