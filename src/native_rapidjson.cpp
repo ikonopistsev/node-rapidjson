@@ -28,7 +28,8 @@ struct rapid_string final {
 
 Napi::Value rapid_arrray::operator()(const rapidjson::Value& elem)
 {
-    for (std::size_t i = 0; i < elem.Size(); ++i) {
+    auto size = elem.Size();
+    for (std::size_t i = 0; i < size; ++i) {
         auto& val = elem[i];
         auto type = val.GetType();
         switch (type) {
@@ -74,39 +75,40 @@ Napi::Value rapid_arrray::operator()(const rapidjson::Value& elem)
 Napi::Value rapid_object::operator()(const rapidjson::Value& elem)
 {
     for (auto& [name, val] : elem.GetObject()) {
+        auto key = name.GetString();
         switch (val.GetType()) {
             case rapidjson::kNullType:  {
-                base.Set(name.GetString(), env.Null());
+                base.Set(key, env.Null());
             } break;
             case rapidjson::kFalseType: {
-                base.Set(name.GetString(), false);
+                base.Set(key, false);
             } break;
             case rapidjson::kTrueType: {
-                base.Set(name.GetString(), true);
+                base.Set(key, true);
             } break;
             case rapidjson::kObjectType: {
                 rapid_object f{env, Napi::Object::New(env)};
-                base.Set(name.GetString(), f(val));
+                base.Set(key, f(val));
             } break;
             case rapidjson::kArrayType: {
                 rapid_arrray f{env, Napi::Array::New(env, val.Size())};
-                base.Set(name.GetString(), f(val));
+                base.Set(key, f(val));
             } break;
             case rapidjson::kStringType: {
                 rapid_string s{env};
-                base.Set(name.GetString(), s(val));
+                base.Set(key, s(val));
             } break;
             default: {
                 if (val.IsInt()) {
-                    base.Set(name.GetString(), Napi::Number::New(env, val.GetInt()));
+                    base.Set(key, Napi::Number::New(env, val.GetInt()));
                 } else if (val.IsUint()) {
-                    base.Set(name.GetString(), Napi::Number::New(env, val.GetUint()));
+                    base.Set(key, Napi::Number::New(env, val.GetUint()));
                 } else if (val.IsInt64()) {
-                    base.Set(name.GetString(), Napi::BigInt::New(env, val.GetInt64()));
+                    base.Set(key, Napi::BigInt::New(env, val.GetInt64()));
                 } else if (val.IsUint64()) {
-                    base.Set(name.GetString(), Napi::BigInt::New(env, val.GetUint64()));
+                    base.Set(key, Napi::BigInt::New(env, val.GetUint64()));
                 } else {
-                    base.Set(name.GetString(), Napi::Number::New(env, val.GetDouble()));
+                    base.Set(key, Napi::Number::New(env, val.GetDouble()));
                 }
             };
         }
@@ -140,7 +142,7 @@ private:
     Napi::Value parse(const Napi::CallbackInfo &info)
     {
         auto env = info.Env();
-        if (info.Length() != 1) 
+        if (1 != info.Length()) 
         {
             Napi::TypeError::New(env, "Wrong number of arguments")
                 .ThrowAsJavaScriptException();
