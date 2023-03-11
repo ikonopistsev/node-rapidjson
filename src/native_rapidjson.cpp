@@ -3,16 +3,16 @@
 #include "rapidjson/allocators.h"
 #include <napi.h>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 using namespace Napi;
 
 namespace {
 
-// strange usage :(
 struct rapid_number final {
-    Napi::Env& env;
-    Napi::Value operator()(const rapidjson::Value& elem) {
+    bool is_mixed_{false};
+    Napi::Value mixed(const rapidjson::Value& elem, Napi::Env& env) {
         if (elem.IsInt()) {
             return Napi::Number::New(env, elem.GetInt());
         } else if (elem.IsUint()) {
@@ -23,19 +23,19 @@ struct rapid_number final {
             return Napi::BigInt::New(env, elem.GetUint64());
         }
         return Napi::Number::New(env, elem.GetDouble());          
-    }    
-};
-
-struct rapid_bigint final {
-    Napi::Env& env;
-    Napi::Value operator()(const rapidjson::Value& elem) {
+    }
+    Napi::Value bigint(const rapidjson::Value& elem, Napi::Env& env) {
         if (elem.IsInt64()) {
             return Napi::BigInt::New(env, elem.GetInt64());
         } else if (elem.IsUint64()) {
             return Napi::BigInt::New(env, elem.GetUint64());
         }
         return Napi::Number::New(env, elem.GetDouble());
-    }    
+    }
+    Napi::Value operator()(const rapidjson::Value& elem, Napi::Env& env) {
+        return is_mixed_ ? 
+            mixed(elem, env) : bigint(elem, env);
+    }
 };
 
 struct rapid_string final {
@@ -79,7 +79,7 @@ struct rapid_object final {
                     res.Set(i, s(val));
                 } break;
                 default:
-                    res.Set(i, num_fn(val));
+                    res.Set(i, num_fn(val, env));
             }
         }
         return res;
@@ -113,7 +113,7 @@ struct rapid_object final {
                     res.Set(key, s(val));
                 } break;
                 default:
-                    res.Set(key, num_fn(val));               
+                    res.Set(key, num_fn(val, env));               
             }
         }
         return res;        
@@ -131,6 +131,7 @@ class RapidJSON final
     std::size_t alloc_size_{alloc_def};
     std::unique_ptr<char[]> buffer_{};
     std::unique_ptr<RapidAllocator> allocator_{};
+    std::unordered_map<std::string, rapid_number> convert_{};
 public:
     RapidJSON(const Napi::CallbackInfo& info)
         : ObjectWrap(info)
@@ -204,7 +205,7 @@ private:
                 return s(d);
             }
             default: 
-                return number(d);
+                return number(d, env);
         }
 
         return env.Undefined();
@@ -212,27 +213,7 @@ private:
 
     Napi::Value parse(const Napi::CallbackInfo &info)
     {
-        auto env = info.Env();
-        if (1 != info.Length()) 
-        {
-            Napi::TypeError::New(env, "Wrong number of arguments")
-                .ThrowAsJavaScriptException();
-            return env.Undefined();
-        }
-        
-        auto& arg0 = info[0];
-        if (arg0.IsUndefined() || arg0.IsNull() || 
-            arg0.IsNumber() || arg0.IsBoolean())
-            return arg0;
-
-        if (!arg0.IsString())
-        {
-            Napi::TypeError::New(env, "Wrong arguments")
-                .ThrowAsJavaScriptException();
-            return env.Null();
-        }
-
-        return parse(arg0.ToString(), env, rapid_bigint{env});
+        return parseMixed(info);
     }
 
     Napi::Value parseMixed(const Napi::CallbackInfo &info)
@@ -257,7 +238,7 @@ private:
             return env.Null();
         }
 
-        return parse(arg0.ToString(), env, rapid_number{env});
+        return parse(arg0.ToString(), env, rapid_number{true});
     }
 
     Napi::Value parseInt64(const Napi::CallbackInfo &info)
@@ -282,7 +263,7 @@ private:
             return env.Null();
         }
 
-        return parse(arg0.ToString(), env, rapid_bigint{env});
+        return parse(arg0.ToString(), env, rapid_number{});
     }
 
     Napi::Value forceInt64(const Napi::CallbackInfo &info) 
@@ -294,6 +275,17 @@ private:
     Napi::Value forceNumber(const Napi::CallbackInfo &info) 
     {
         auto env = info.Env();
+        if (info.Length() >= 1)
+        {
+            auto arr = info[0].As<Napi::Array>();
+            for (std::size_t i = 0; i < arr.Length(); ++i) 
+            {
+
+            }
+        }        
+
+        Napi::TypeError::New(env, "Wrong number of arguments")
+            .ThrowAsJavaScriptException();
         return env.Undefined();
     }
 };
