@@ -4,14 +4,13 @@
 #include <napi.h>
 #include <string_view>
 #include <unordered_map>
-#include <vector>
 
 using namespace Napi;
 
 namespace {
 
 struct rapid_number final {
-    bool is_mixed_{false};
+    bool is_mixed{false};
     Napi::Value mixed(const rapidjson::Value& elem, Napi::Env& env) {
         if (elem.IsInt()) {
             return Napi::Number::New(env, elem.GetInt());
@@ -33,7 +32,7 @@ struct rapid_number final {
         return Napi::Number::New(env, elem.GetDouble());
     }
     Napi::Value operator()(const rapidjson::Value& elem, Napi::Env& env) {
-        return is_mixed_ ? 
+        return is_mixed ? 
             mixed(elem, env) : bigint(elem, env);
     }
 };
@@ -46,6 +45,9 @@ struct rapid_string final {
     }    
 };
 
+template<class F>
+Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F number);
+
 struct rapid_object final {
     Napi::Env& env;
 
@@ -56,31 +58,7 @@ struct rapid_object final {
         for (std::size_t i = 0; i < size; ++i) {
             auto& val = elem[i];
             auto type = val.GetType();
-            switch (type) {
-                case rapidjson::kNullType:  {
-                    res.Set(i, env.Null());
-                } break;
-                case rapidjson::kFalseType: {
-                    res.Set(i, false);
-                } break;
-                case rapidjson::kTrueType: {
-                    res.Set(i, true);
-                } break;
-                case rapidjson::kObjectType: {
-                    rapid_object f{env};
-                    res.Set(i, f.parseObject(val, num_fn));
-                } break;
-                case rapidjson::kArrayType: {
-                    rapid_object f{env};
-                    res.Set(i, f.parseArray(val, num_fn));                    
-                } break;
-                case rapidjson::kStringType: {
-                    rapid_string s{env};
-                    res.Set(i, s(val));
-                } break;
-                default:
-                    res.Set(i, num_fn(val, env));
-            }
+            res.Set(i, rapid_convert(val, env, num_fn));
         }
         return res;
     }
@@ -90,35 +68,37 @@ struct rapid_object final {
         auto res = Napi::Object::New(env);
         for (auto& [name, val] : elem.GetObject()) {
             auto key = name.GetString();
-            switch (val.GetType()) {
-                case rapidjson::kNullType:  {
-                    res.Set(key, env.Null());
-                } break;
-                case rapidjson::kFalseType: {
-                    res.Set(key, false);
-                } break;
-                case rapidjson::kTrueType: {
-                    res.Set(key, true);
-                } break;
-                case rapidjson::kObjectType: {
-                    rapid_object f{env};
-                    res.Set(key, f.parseObject(val, num_fn));
-                } break;
-                case rapidjson::kArrayType: {
-                    rapid_object f{env};
-                    res.Set(key, f.parseArray(val, num_fn));
-                } break;
-                case rapidjson::kStringType: {
-                    rapid_string s{env};
-                    res.Set(key, s(val));
-                } break;
-                default:
-                    res.Set(key, num_fn(val, env));               
-            }
+            res.Set(key, rapid_convert(val, env, num_fn));
         }
         return res;        
     }
 };
+
+template<class F>
+Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F number) {
+    switch (value.GetType()) {
+        case rapidjson::kNullType:
+            return env.Null();
+        case rapidjson::kFalseType:
+            return Napi::Boolean::New(env, false);
+        case rapidjson::kTrueType:
+            return Napi::Boolean::New(env, true);
+        case rapidjson::kObjectType: {
+            rapid_object f{env};
+            return f.parseObject(value, number);
+        };
+        case rapidjson::kArrayType: {
+            rapid_object f{env};
+            return f.parseArray(value, number);
+        };
+        case rapidjson::kStringType: {
+            rapid_string s{env};
+            return s(value);
+        }
+        default: ;
+    }
+    return number(value, env);
+}
 
 }
 
@@ -126,12 +106,13 @@ class RapidJSON final
     : public ObjectWrap<RapidJSON>
 {
     using RapidAllocator = rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>;
+    using keyword_type = std::unordered_map<std::string, rapid_number>;
     static constexpr auto alloc_min = std::size_t{2048u};
     static constexpr auto alloc_def = std::size_t{128u * alloc_min};
     std::size_t alloc_size_{alloc_def};
     std::unique_ptr<char[]> buffer_{};
     std::unique_ptr<RapidAllocator> allocator_{};
-    std::unordered_map<std::string, rapid_number> convert_{};
+    keyword_type keyword_{};
 public:
     RapidJSON(const Napi::CallbackInfo& info)
         : ObjectWrap(info)
@@ -152,10 +133,8 @@ public:
     {
         auto func = DefineClass(env, "RapidJSON", {
             InstanceMethod("parse", &RapidJSON::parse),
-            InstanceMethod("parseMixed", &RapidJSON::parseMixed),
-            InstanceMethod("parseInt64", &RapidJSON::parseInt64),
-            InstanceMethod("forceInt64", &RapidJSON::forceInt64),
-            InstanceMethod("forceNumber", &RapidJSON::forceNumber),
+            InstanceMethod("parseBigInt", &RapidJSON::parseBigInt),
+            InstanceMethod("forceKeyword", &RapidJSON::forceKeyword)
         });
 
         auto constructor = new Napi::FunctionReference();
@@ -185,30 +164,7 @@ private:
             return env.Null();
         }
 
-        switch (d.GetType()) {
-            case rapidjson::kNullType:
-                return env.Null();
-            case rapidjson::kFalseType:
-                return Napi::Boolean::New(env, false);
-            case rapidjson::kTrueType:
-                return Napi::Boolean::New(env, true);
-            case rapidjson::kObjectType: {
-                rapid_object f{env};
-                return f.parseObject(d, number);
-            };
-            case rapidjson::kArrayType: {
-                rapid_object f{env};
-                return f.parseArray(d, number);
-            };
-            case rapidjson::kStringType: {
-                rapid_string s{env};
-                return s(d);
-            }
-            default: 
-                return number(d, env);
-        }
-
-        return env.Undefined();
+        return rapid_convert(d, env, number);
     }
 
     Napi::Value parse(const Napi::CallbackInfo &info)
@@ -241,7 +197,7 @@ private:
         return parse(arg0.ToString(), env, rapid_number{true});
     }
 
-    Napi::Value parseInt64(const Napi::CallbackInfo &info)
+    Napi::Value parseBigInt(const Napi::CallbackInfo &info)
     {
         auto env = info.Env();
         if (1 != info.Length()) 
@@ -266,22 +222,25 @@ private:
         return parse(arg0.ToString(), env, rapid_number{});
     }
 
-    Napi::Value forceInt64(const Napi::CallbackInfo &info) 
+    void setupMixed(Napi::Array arr, bool is_mixed)
     {
-        auto env = info.Env();
-        return env.Undefined();
+        keyword_type k;
+        for (std::size_t i = 0; i < arr.Length(); ++i) 
+        {
+            auto text = std::string{arr.Get(i).As<Napi::String>()};
+            k.emplace(std::move(text), rapid_number{is_mixed});
+        }
+
+        keyword_ = std::move(k);
     }
 
-    Napi::Value forceNumber(const Napi::CallbackInfo &info) 
+    Napi::Value forceKeyword(const Napi::CallbackInfo &info) 
     {
         auto env = info.Env();
         if (info.Length() >= 1)
         {
-            auto arr = info[0].As<Napi::Array>();
-            for (std::size_t i = 0; i < arr.Length(); ++i) 
-            {
-
-            }
+            setupMixed(info[0].As<Napi::Array>(), false);
+            return env.Undefined();
         }        
 
         Napi::TypeError::New(env, "Wrong number of arguments")
