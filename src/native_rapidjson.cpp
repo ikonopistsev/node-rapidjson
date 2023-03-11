@@ -7,16 +7,35 @@
 
 using namespace Napi;
 
-struct rapid_arrray final {
+namespace {
+
+// strange usage :(
+struct rapid_number final {
     Napi::Env& env;
-    Napi::Array base;
-    Napi::Value operator()(const rapidjson::Value& elem);
+    Napi::Value operator()(const rapidjson::Value& elem) {
+        if (elem.IsInt()) {
+            return Napi::Number::New(env, elem.GetInt());
+        } else if (elem.IsUint()) {
+            return Napi::Number::New(env, elem.GetUint());
+        } else if (elem.IsInt64()) {
+            return Napi::BigInt::New(env, elem.GetInt64());
+        } else if (elem.IsUint64()) {
+            return Napi::BigInt::New(env, elem.GetUint64());
+        }
+        return Napi::Number::New(env, elem.GetDouble());          
+    }    
 };
 
-struct rapid_object final {
+struct rapid_bigint final {
     Napi::Env& env;
-    Napi::Object base;
-    Napi::Value operator()(const rapidjson::Value& elem);
+    Napi::Value operator()(const rapidjson::Value& elem) {
+        if (elem.IsInt64()) {
+            return Napi::BigInt::New(env, elem.GetInt64());
+        } else if (elem.IsUint64()) {
+            return Napi::BigInt::New(env, elem.GetUint64());
+        }
+        return Napi::Number::New(env, elem.GetDouble());
+    }    
 };
 
 struct rapid_string final {
@@ -27,112 +46,115 @@ struct rapid_string final {
     }    
 };
 
-Napi::Value rapid_arrray::operator()(const rapidjson::Value& elem)
-{
-    auto size = elem.Size();
-    for (std::size_t i = 0; i < size; ++i) {
-        auto& val = elem[i];
-        auto type = val.GetType();
-        switch (type) {
-            case rapidjson::kNullType:  {
-                base.Set(i, env.Null());
-            } break;
-            case rapidjson::kFalseType: {
-                base.Set(i, false);
-            } break;
-            case rapidjson::kTrueType: {
-                base.Set(i, true);
-            } break;
-            case rapidjson::kObjectType: {
-                rapid_object f{env, Napi::Object::New(env)};
-                base.Set(i, f(val));
-            } break;
-            case rapidjson::kArrayType: {
-                rapid_arrray f{env, Napi::Array::New(env, val.Size())};
-                base.Set(i, f(val));
-            } break;
-            case rapidjson::kStringType: {
-                rapid_string s{env};
-                base.Set(i, s(val));
-            } break;
-            default: {
-                if (val.IsInt()) {
-                    base.Set(i, Napi::Number::New(env, val.GetInt()));
-                } else if (val.IsUint()) {
-                    base.Set(i, Napi::Number::New(env, val.GetUint()));
-                } else if (val.IsInt64()) {
-                    base.Set(i, Napi::BigInt::New(env, val.GetInt64()));
-                } else if (val.IsUint64()) {
-                    base.Set(i, Napi::BigInt::New(env, val.GetUint64()));
-                } else {
-                    base.Set(i, Napi::Number::New(env, val.GetDouble()));
-                }
-            };
-        }
-    }
-    return base;
-}
+struct rapid_object final {
+    Napi::Env& env;
 
-Napi::Value rapid_object::operator()(const rapidjson::Value& elem)
-{
-    for (auto& [name, val] : elem.GetObject()) {
-        auto key = name.GetString();
-        switch (val.GetType()) {
-            case rapidjson::kNullType:  {
-                base.Set(key, env.Null());
-            } break;
-            case rapidjson::kFalseType: {
-                base.Set(key, false);
-            } break;
-            case rapidjson::kTrueType: {
-                base.Set(key, true);
-            } break;
-            case rapidjson::kObjectType: {
-                rapid_object f{env, Napi::Object::New(env)};
-                base.Set(key, f(val));
-            } break;
-            case rapidjson::kArrayType: {
-                rapid_arrray f{env, Napi::Array::New(env, val.Size())};
-                base.Set(key, f(val));
-            } break;
-            case rapidjson::kStringType: {
-                rapid_string s{env};
-                base.Set(key, s(val));
-            } break;
-            default: {
-                if (val.IsInt()) {
-                    base.Set(key, Napi::Number::New(env, val.GetInt()));
-                } else if (val.IsUint()) {
-                    base.Set(key, Napi::Number::New(env, val.GetUint()));
-                } else if (val.IsInt64()) {
-                    base.Set(key, Napi::BigInt::New(env, val.GetInt64()));
-                } else if (val.IsUint64()) {
-                    base.Set(key, Napi::BigInt::New(env, val.GetUint64()));
-                } else {
-                    base.Set(key, Napi::Number::New(env, val.GetDouble()));
-                }
-            };
+    template<class F>
+    Napi::Value parseArray(const rapidjson::Value& elem, F num_fn) {
+        auto size = elem.Size();
+        auto res = Napi::Array::New(env, size);
+        for (std::size_t i = 0; i < size; ++i) {
+            auto& val = elem[i];
+            auto type = val.GetType();
+            switch (type) {
+                case rapidjson::kNullType:  {
+                    res.Set(i, env.Null());
+                } break;
+                case rapidjson::kFalseType: {
+                    res.Set(i, false);
+                } break;
+                case rapidjson::kTrueType: {
+                    res.Set(i, true);
+                } break;
+                case rapidjson::kObjectType: {
+                    rapid_object f{env};
+                    res.Set(i, f.parseObject(val, num_fn));
+                } break;
+                case rapidjson::kArrayType: {
+                    rapid_object f{env};
+                    res.Set(i, f.parseArray(val, num_fn));                    
+                } break;
+                case rapidjson::kStringType: {
+                    rapid_string s{env};
+                    res.Set(i, s(val));
+                } break;
+                default:
+                    res.Set(i, num_fn(val));
+            }
         }
+        return res;
     }
-    return base;
+
+    template<class F>
+    Napi::Value parseObject(const rapidjson::Value& elem, F num_fn) {
+        auto res = Napi::Object::New(env);
+        for (auto& [name, val] : elem.GetObject()) {
+            auto key = name.GetString();
+            switch (val.GetType()) {
+                case rapidjson::kNullType:  {
+                    res.Set(key, env.Null());
+                } break;
+                case rapidjson::kFalseType: {
+                    res.Set(key, false);
+                } break;
+                case rapidjson::kTrueType: {
+                    res.Set(key, true);
+                } break;
+                case rapidjson::kObjectType: {
+                    rapid_object f{env};
+                    res.Set(key, f.parseObject(val, num_fn));
+                } break;
+                case rapidjson::kArrayType: {
+                    rapid_object f{env};
+                    res.Set(key, f.parseArray(val, num_fn));
+                } break;
+                case rapidjson::kStringType: {
+                    rapid_string s{env};
+                    res.Set(key, s(val));
+                } break;
+                default:
+                    res.Set(key, num_fn(val));               
+            }
+        }
+        return res;        
+    }
+};
+
 }
 
 class RapidJSON final
     : public ObjectWrap<RapidJSON>
 {
-    char buffer_[16 * 1024];
-    rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator> alloc_{buffer_, sizeof(buffer_)};
+    using RapidAllocator = rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>;
+    static constexpr auto alloc_min = std::size_t{2048u};
+    static constexpr auto alloc_def = std::size_t{128u * alloc_min};
+    std::size_t alloc_size_{alloc_def};
+    std::unique_ptr<char[]> buffer_{};
+    std::unique_ptr<RapidAllocator> allocator_{};
 public:
-    RapidJSON(const Napi::CallbackInfo &callbackInfo)
-        : ObjectWrap(callbackInfo)
+    RapidJSON(const Napi::CallbackInfo& info)
+        : ObjectWrap(info)
     {   
+        auto env = info.Env();
+        if ((info.Length() >= 1) && info[0].IsNumber())
+        {
+            auto mem_size = info[0].As<Napi::Number>();
+            auto val = mem_size.Uint32Value();
+            alloc_size_ = (alloc_min < val) ? val : alloc_min;
+        }
 
+        buffer_.reset(new char[alloc_size_]);
+        allocator_.reset(new RapidAllocator{buffer_.get(), alloc_size_});
     }
 
     static Napi::Object Init(Napi::Env env, Napi::Object exports)
     {
         auto func = DefineClass(env, "RapidJSON", {
-            InstanceMethod("parse", &RapidJSON::parse)
+            InstanceMethod("parse", &RapidJSON::parse),
+            InstanceMethod("parseMixed", &RapidJSON::parseMixed),
+            InstanceMethod("parseInt64", &RapidJSON::parseInt64),
+            InstanceMethod("forceInt64", &RapidJSON::forceInt64),
+            InstanceMethod("forceNumber", &RapidJSON::forceNumber),
         });
 
         auto constructor = new Napi::FunctionReference();
@@ -144,36 +166,13 @@ public:
     }
 
 private:
-    Napi::Value parse(const Napi::CallbackInfo &info)
-    {
-        auto env = info.Env();
-        if (1 != info.Length()) 
-        {
-            Napi::TypeError::New(env, "Wrong number of arguments")
-                .ThrowAsJavaScriptException();
-            return env.Undefined();
-        }
-        
-        auto& arg0 = info[0];
-        if (arg0.IsUndefined())
-            return arg0;
-
-        if (arg0.IsNull())
-            return arg0;
-        
-        if (arg0.IsNumber())
-            return arg0;
-
-        if (!arg0.IsString())
-        {
-            Napi::TypeError::New(env, "Wrong arguments")
-                .ThrowAsJavaScriptException();
-            return env.Null();
-        }
-
-        alloc_.Clear();
-        rapidjson::Document d(&alloc_);
-        d.Parse(arg0.ToString());
+    template<class F>
+    Napi::Value parse(const std::string& text, Napi::Env& env, F number)
+    {        
+        auto allocator = allocator_.get();
+        allocator->Clear();
+        rapidjson::Document d(allocator);
+        d.Parse(text);
         if (d.HasParseError()) 
         {
             std::string err("Error at offset ");
@@ -193,31 +192,108 @@ private:
             case rapidjson::kTrueType:
                 return Napi::Boolean::New(env, true);
             case rapidjson::kObjectType: {
-                rapid_object f{env, Napi::Object::New(env)};
-                return f(d);
+                rapid_object f{env};
+                return f.parseObject(d, number);
             };
             case rapidjson::kArrayType: {
-                rapid_arrray f{env, Napi::Array::New(env, d.Size())};
-                return f(d);
+                rapid_object f{env};
+                return f.parseArray(d, number);
             };
             case rapidjson::kStringType: {
                 rapid_string s{env};
                 return s(d);
             }
-            default:
-                if (d.IsInt()) {
-                    return Napi::Number::New(env, d.GetInt());
-                } else if (d.IsUint()) {
-                    return Napi::Number::New(env, d.GetUint());
-                } else if (d.IsInt64()) {
-                    return Napi::BigInt::New(env, d.GetInt64());
-                } else if (d.IsUint64()) {
-                    return Napi::BigInt::New(env, d.GetUint64());
-                } else {
-                    return Napi::Number::New(env, d.GetDouble());
-                };
+            default: 
+                return number(d);
         }
 
+        return env.Undefined();
+    }
+
+    Napi::Value parse(const Napi::CallbackInfo &info)
+    {
+        auto env = info.Env();
+        if (1 != info.Length()) 
+        {
+            Napi::TypeError::New(env, "Wrong number of arguments")
+                .ThrowAsJavaScriptException();
+            return env.Undefined();
+        }
+        
+        auto& arg0 = info[0];
+        if (arg0.IsUndefined() || arg0.IsNull() || 
+            arg0.IsNumber() || arg0.IsBoolean())
+            return arg0;
+
+        if (!arg0.IsString())
+        {
+            Napi::TypeError::New(env, "Wrong arguments")
+                .ThrowAsJavaScriptException();
+            return env.Null();
+        }
+
+        return parse(arg0.ToString(), env, rapid_bigint{env});
+    }
+
+    Napi::Value parseMixed(const Napi::CallbackInfo &info)
+    {
+        auto env = info.Env();
+        if (1 != info.Length()) 
+        {
+            Napi::TypeError::New(env, "Wrong number of arguments")
+                .ThrowAsJavaScriptException();
+            return env.Undefined();
+        }
+        
+        auto& arg0 = info[0];
+        if (arg0.IsUndefined() || arg0.IsNull() || 
+            arg0.IsNumber() || arg0.IsBoolean())
+            return arg0;
+
+        if (!arg0.IsString())
+        {
+            Napi::TypeError::New(env, "Wrong arguments")
+                .ThrowAsJavaScriptException();
+            return env.Null();
+        }
+
+        return parse(arg0.ToString(), env, rapid_number{env});
+    }
+
+    Napi::Value parseInt64(const Napi::CallbackInfo &info)
+    {
+        auto env = info.Env();
+        if (1 != info.Length()) 
+        {
+            Napi::TypeError::New(env, "Wrong number of arguments")
+                .ThrowAsJavaScriptException();
+            return env.Undefined();
+        }
+        
+        auto& arg0 = info[0];
+        if (arg0.IsUndefined() || arg0.IsNull() || 
+            arg0.IsNumber() || arg0.IsBoolean())
+            return arg0;
+
+        if (!arg0.IsString())
+        {
+            Napi::TypeError::New(env, "Wrong arguments")
+                .ThrowAsJavaScriptException();
+            return env.Null();
+        }
+
+        return parse(arg0.ToString(), env, rapid_bigint{env});
+    }
+
+    Napi::Value forceInt64(const Napi::CallbackInfo &info) 
+    {
+        auto env = info.Env();
+        return env.Undefined();
+    }
+
+    Napi::Value forceNumber(const Napi::CallbackInfo &info) 
+    {
+        auto env = info.Env();
         return env.Undefined();
     }
 };
