@@ -21,10 +21,10 @@ console.log(JSON.parse("{}"));
 console.log(JSON.parse(text));
 
 
-// let rc = 0;
-// const count = 1000000;
-// for (let i = 0; i < count; ++i) {
-//     rc += rapidJSON.parse(text).val;
-// }
-// console.log(rc);
+let rc = 0;
+const count = 10000000;
+for (let i = 0; i < count; ++i) {
+    rc += JSON.parse(text).val;
+}
+console.log(rc);
 

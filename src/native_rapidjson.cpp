@@ -3,6 +3,7 @@
 #include "rapidjson/allocators.h"
 #include <napi.h>
 #include <string_view>
+#include <vector>
 
 using namespace Napi;
 
@@ -119,10 +120,14 @@ Napi::Value rapid_object::operator()(const rapidjson::Value& elem)
 class RapidJSON final
     : public ObjectWrap<RapidJSON>
 {
+    char buffer_[16 * 1024];
+    rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator> alloc_{buffer_, sizeof(buffer_)};
 public:
     RapidJSON(const Napi::CallbackInfo &callbackInfo)
         : ObjectWrap(callbackInfo)
-    {   }
+    {   
+
+    }
 
     static Napi::Object Init(Napi::Env env, Napi::Object exports)
     {
@@ -166,7 +171,8 @@ private:
             return env.Null();
         }
 
-        rapidjson::Document d;
+        alloc_.Clear();
+        rapidjson::Document d(&alloc_);
         d.Parse(arg0.ToString());
         if (d.HasParseError()) 
         {
