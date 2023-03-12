@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.18)
 
 # Name of the project (will be the name of the plugin)
-project(node-rapidjson-native)
+project(node-rapidjson)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(${PROJECT_NAME} SHARED 
-	src/native_rapidjson.cpp
+	src/rapidjson.cpp
 )
 
 add_definitions(-DRAPIDJSON_HAS_STDSTRING=1 -DRAPIDJSON_SSE2=1)
@@ -25,6 +25,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_JS_INC})
 # Essential library files to link to a node addon
 # You should add this line in every CMake.js based project
 target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB})
+# for static libstdc++ add -static-libgcc -static-libstdc++ -l:libstdc++.a
 
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")

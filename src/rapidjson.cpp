@@ -1,9 +1,15 @@
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
 #include "rapidjson/allocators.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/internal/ieee754.h"
+#include <cmath>
 #include <napi.h>
+#include <iostream>
 #include <string_view>
 #include <unordered_map>
+#include <limits>
 
 using namespace Napi;
 
@@ -100,6 +106,131 @@ Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F numbe
     return number(value, env);
 }
 
+
+struct rapid_generate {
+    rapidjson::Document& doc;
+    rapidjson::Value operator()(const Napi::Value& value) {
+        switch (value.Type()) {
+            case napi_boolean:
+                if (value.As<Napi::Boolean>().Value())
+                    return rapidjson::Value{rapidjson::kTrueType};
+                return rapidjson::Value{rapidjson::kFalseType};
+            case napi_number: {
+                auto number = value.As<Napi::Number>();
+                auto val = number.DoubleValue();
+                if (std::isnan(val) || std::isinf(val))
+                    return rapidjson::Value{rapidjson::kNullType};
+                if (val < 0) 
+                    val = -val;
+                if (val <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+                    // Split the value into an integer part and a fractional part.
+                    double integer = std::floor(val);
+                    double fraction = val - integer;
+                    // We only compute fractional digits up to the input double's precision.
+                    double delta = 0.5 * (rapidjson::internal::Double(val).NextPositiveDouble() - val);
+                    delta = std::max(rapidjson::internal::Double(0.0).NextPositiveDouble(), delta);
+                    if (fraction >= delta) {
+                        return rapidjson::Value{number.DoubleValue()};
+                    }
+                    return rapidjson::Value{static_cast<std::int64_t>(number.Int64Value())};
+                }
+                return rapidjson::Value{number.DoubleValue()};
+            }
+            case napi_string:
+                return rapidjson::Value{std::string{value.ToString()}, 
+                    doc.GetAllocator()};
+            case napi_object: {
+                if (value.IsArray())
+                    return rapidArray(value.As<Napi::Array>());
+                return rapidObject(value.As<Napi::Object>());
+            }
+            case napi_bigint: {
+                int sign;
+                std::uint64_t val;
+                std::size_t count{1u};
+                auto bigint = value.As<Napi::BigInt>();
+                bigint.ToWords(&sign, &count, &val);
+                if (sign)
+                    return rapidjson::Value{-(*reinterpret_cast<std::int64_t*>(&val))};
+                return rapidjson::Value{val}; 
+            }
+            default:;
+        }
+        
+        return rapidjson::Value{rapidjson::kNullType};
+    }
+
+    rapidjson::Value rapidArray(const Napi::Array& value) {
+        auto size = value.Length();
+        auto& alloc = doc.GetAllocator();
+        rapidjson::Value arr{rapidjson::kArrayType};
+        arr.Reserve(size, alloc);
+        rapid_generate gen{doc};
+        for (std::size_t i = 0; i < size; ++i)
+            arr.PushBack(gen(value[i]), alloc);
+        return arr;
+    }
+
+    Napi::Value rapidArrayDocument(Napi::Env& env, const Napi::Array& value) {
+        auto size = value.Length();
+        auto& alloc = doc.GetAllocator();
+        doc.SetArray();
+        doc.Reserve(size, alloc);
+        rapid_generate gen{doc};
+        for (std::size_t i = 0; i < size; ++i) {
+            doc.PushBack(gen(value[i]), alloc);
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        doc.Accept(writer);
+
+        return Napi::String::New(env, 
+            buffer.GetString(), buffer.GetSize());
+    }
+
+    rapidjson::Value rapidObject(const Napi::Object& value) {
+        auto& alloc = doc.GetAllocator();
+        rapidjson::Value arr{rapidjson::kObjectType};
+        rapid_generate gen{doc};
+        for(auto&& elem: value) {
+            auto key = std::string{elem.first.ToString()};
+            arr.AddMember(rapidjson::Value{key, alloc}, 
+                gen(elem.second), alloc);
+        }
+        return arr;
+    }
+
+    Napi::Value rapidObjectDocument(Napi::Env& env, const Napi::Object& value) {
+        doc.SetObject();
+        auto& alloc = doc.GetAllocator();
+        rapid_generate gen{doc};
+        for(auto&& elem: value) {
+            auto key = std::string{elem.first.ToString()};
+            doc.AddMember(rapidjson::Value{key, alloc}, 
+                gen(elem.second), alloc);
+        }
+    
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        doc.Accept(writer);
+
+        return Napi::String::New(env, 
+            buffer.GetString(), buffer.GetSize());
+    }    
+
+    Napi::Value rapidDocument(Napi::Env& env, const Napi::Value& value) {
+        if (value.Type() == napi_object) {
+            rapid_generate gen{doc};
+            if (value.IsArray()) {
+                return gen.rapidArrayDocument(env, value.As<Napi::Array>());
+            }
+            return gen.rapidObjectDocument(env, value.As<Napi::Object>());
+        }
+        return value.ToString();
+    }
+};
+
 }
 
 class RapidJSON final
@@ -134,7 +265,8 @@ public:
         auto func = DefineClass(env, "RapidJSON", {
             InstanceMethod("parse", &RapidJSON::parse),
             InstanceMethod("parseBigInt", &RapidJSON::parseBigInt),
-            InstanceMethod("forceKeyword", &RapidJSON::forceKeyword)
+            InstanceMethod("forceKeyword", &RapidJSON::forceKeyword),
+            InstanceMethod("stringify", &RapidJSON::stringify)
         });
 
         auto constructor = new Napi::FunctionReference();
@@ -245,6 +377,28 @@ private:
 
         Napi::TypeError::New(env, "Wrong number of arguments")
             .ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+
+    Napi::Value stringify(const Napi::CallbackInfo &info)
+    {
+        auto env = info.Env();
+        if (1 != info.Length()) 
+        {
+            Napi::TypeError::New(env, "Wrong number of arguments")
+                .ThrowAsJavaScriptException();
+            return env.Undefined();
+        }
+
+        auto value = info[0];
+        if (!value.IsEmpty()) 
+        {
+            auto allocator = allocator_.get();
+            allocator->Clear();
+            rapidjson::Document doc(allocator);
+            rapid_generate gen{doc};
+            return gen.rapidDocument(env, value);
+        }
         return env.Undefined();
     }
 };

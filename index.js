@@ -1,3 +1,3 @@
-let modulePath = './build/Release/node-rapidjson-native';
+let modulePath = './build/Release/node-rapidjson';
 const { RapidJSON } = require(modulePath);
 module.exports = RapidJSON;
