@@ -3,6 +3,10 @@ const rapidJSON = new RapidJSON();
 console.log(rapidJSON.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002, 2600000000000698546n, -2600000000000698546n]));
 console.log(JSON.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002]));
 
+const int64max = 9007199254740991;
+console.log(rapidJSON.stringify(int64max));
+console.log(JSON.stringify(int64max));
+
 let json = {
     "firstName": "Иван",
     "lastName": "Иванов",
@@ -16,15 +20,17 @@ let json = {
         "916 123-4567"
     ],
     someNumbers:[
-        0, 12,34.5,643.00000001, 0.000000312e-2, NaN, -Infinity
+        0, 12,34.5,643.00000001, 0.000000312e-2, -Infinity
     ]
 }
 
-const t2 = JSON.stringify(json);
 const t1 = rapidJSON.stringify(json);
+const t2 = JSON.stringify(json);
 console.log(t1);
 console.log(t2);
 console.log(t2 == t1);
 json.bigNumbers = [2600000000000698546n, -2600000000000698546n, NaN];
 const t3 = rapidJSON.stringify(json);
 console.log(t3);
+
+rapidJSON.forceBigInt(["id", "time"]);

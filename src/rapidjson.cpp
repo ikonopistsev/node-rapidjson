@@ -4,12 +4,11 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/internal/ieee754.h"
-#include <cmath>
-#include <napi.h>
-#include <iostream>
+#include <limits>
 #include <string_view>
 #include <unordered_map>
-#include <limits>
+#include <cmath>
+#include <napi.h>
 
 using namespace Napi;
 
@@ -107,7 +106,7 @@ Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F numbe
 }
 
 
-struct rapid_generate {
+struct rapid_generate final {
     rapidjson::Document& doc;
     rapidjson::Value operator()(const Napi::Value& value) {
         switch (value.Type()) {
@@ -132,7 +131,7 @@ struct rapid_generate {
                     if (fraction >= delta) {
                         return rapidjson::Value{number.DoubleValue()};
                     }
-                    return rapidjson::Value{static_cast<std::int64_t>(number.Int64Value())};
+                    return rapidjson::Value{number.Int64Value()};
                 }
                 return rapidjson::Value{number.DoubleValue()};
             }
@@ -220,7 +219,7 @@ struct rapid_generate {
     }    
 
     Napi::Value rapidDocument(Napi::Env& env, const Napi::Value& value) {
-        if (value.Type() == napi_object) {
+        if (napi_object == value.Type()) {
             rapid_generate gen{doc};
             if (value.IsArray()) {
                 return gen.rapidArrayDocument(env, value.As<Napi::Array>());
@@ -265,7 +264,7 @@ public:
         auto func = DefineClass(env, "RapidJSON", {
             InstanceMethod("parse", &RapidJSON::parse),
             InstanceMethod("parseBigInt", &RapidJSON::parseBigInt),
-            InstanceMethod("forceKeyword", &RapidJSON::forceKeyword),
+            InstanceMethod("forceBigInt", &RapidJSON::forceBigInt),
             InstanceMethod("stringify", &RapidJSON::stringify)
         });
 
@@ -283,6 +282,7 @@ private:
     {        
         auto allocator = allocator_.get();
         allocator->Clear();
+        
         rapidjson::Document d(allocator);
         d.Parse(text);
         if (d.HasParseError()) 
@@ -307,7 +307,7 @@ private:
     Napi::Value parseMixed(const Napi::CallbackInfo &info)
     {
         auto env = info.Env();
-        if (1 != info.Length()) 
+        if (info.Length() != 1) 
         {
             Napi::TypeError::New(env, "Wrong number of arguments")
                 .ThrowAsJavaScriptException();
@@ -332,7 +332,7 @@ private:
     Napi::Value parseBigInt(const Napi::CallbackInfo &info)
     {
         auto env = info.Env();
-        if (1 != info.Length()) 
+        if (info.Length() != 1) 
         {
             Napi::TypeError::New(env, "Wrong number of arguments")
                 .ThrowAsJavaScriptException();
@@ -354,7 +354,7 @@ private:
         return parse(arg0.ToString(), env, rapid_number{});
     }
 
-    void setupMixed(Napi::Array arr, bool is_mixed)
+    void setupMixed(const Napi::Array& arr, bool is_mixed)
     {
         keyword_type k;
         for (std::size_t i = 0; i < arr.Length(); ++i) 
@@ -366,7 +366,7 @@ private:
         keyword_ = std::move(k);
     }
 
-    Napi::Value forceKeyword(const Napi::CallbackInfo &info) 
+    Napi::Value forceBigInt(const Napi::CallbackInfo &info) 
     {
         auto env = info.Env();
         if (info.Length() >= 1)
@@ -382,19 +382,20 @@ private:
 
     Napi::Value stringify(const Napi::CallbackInfo &info)
     {
+        auto allocator = allocator_.get();
+        allocator->Clear();
+
         auto env = info.Env();
-        if (1 != info.Length()) 
+        if (info.Length() != 1) 
         {
             Napi::TypeError::New(env, "Wrong number of arguments")
                 .ThrowAsJavaScriptException();
             return env.Undefined();
         }
 
-        auto value = info[0];
+        const auto& value = info[0];
         if (!value.IsEmpty()) 
         {
-            auto allocator = allocator_.get();
-            allocator->Clear();
             rapidjson::Document doc(allocator);
             rapid_generate gen{doc};
             return gen.rapidDocument(env, value);
