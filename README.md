@@ -2,7 +2,7 @@
 
 This module contains [rapidjson](https://github.com/Tencent/rapidjson) bindings.
 
-The library was created to simplify working with BitInt in nodejs.
+The library was created to simplify working with BigInt in nodejs.
 
 ```js
 const RapidJSON = require("@ikonopistsev/node-rapidjson");
