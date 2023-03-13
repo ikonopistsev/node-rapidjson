@@ -2,14 +2,14 @@
 
 This module contains [rapidjson](https://github.com/Tencent/rapidjson) bindings.
 
-The library was created to simplify working with BigInt in nodejs.
+The library was created to simplify working with BigInt in nodejs. Support 32-bit/64-bit signed/unsigned integer and double for JSON number type. See rapidjson [features](https://rapidjson.org/md_doc_features.html).
 
 ```js
 const RapidJSON = require("@ikonopistsev/node-rapidjson");
 const rapidJSON = new RapidJSON();
 const bigintValue = BigInt(2600000000000698546n);
 const array = rapidJSON.parse(rapidJSON.stringify([bigintValue]));
-console.log(array[0])
+console.log(array[0]);
 ```
 
 Supported platforms:
@@ -29,5 +29,5 @@ On Windows:
 ## Installation
 
 ```bash
-npm i node-rapidjson
+npm i @ikonopistsev@node-rapidjson
 ```
