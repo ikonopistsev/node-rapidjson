@@ -1,7 +1,7 @@
 {
-  "name": "node-rapidjson",
+  "name": "@ikonopistsev/node-rapidjson",
   "version": "1.0.0",
-  "description": "rapidjson parser",
+  "description": "rapidjson parser and geneartor, for javascript BigInt",
   "main": "index.js",
   "scripts": {
     "test": "node test.js",

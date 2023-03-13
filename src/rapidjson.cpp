@@ -121,7 +121,8 @@ struct rapid_generate final {
                     return rapidjson::Value{rapidjson::kNullType};
                 if (val < 0) 
                     val = -val;
-                if (val <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+                constexpr auto number_max_safe = 9007199254740991u;
+                if (val <= static_cast<double>(number_max_safe)) {
                     // Split the value into an integer part and a fractional part.
                     double integer = std::floor(val);
                     double fraction = val - integer;
