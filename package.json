@@ -1,6 +1,6 @@
 {
   "name": "@ikonopistsev/node-rapidjson",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "rapidjson parser and geneartor, for javascript BigInt",
   "main": "index.js",
   "scripts": {
@@ -8,6 +8,7 @@
     "build": "node build.js",
     "install": "node build.js"
   },
+  "types": "./index.d.ts",
   "author": "Igor Ikonopistsev",
   "license": "Apache-2.0",
   "dependencies": {
