@@ -1,5 +1,9 @@
 const RapidJSON = require("./index.js");
 const rapidJSON = new RapidJSON();
+const bigintValue = BigInt(2600000000000698546n);
+const array = rapidJSON.parse(rapidJSON.stringify([bigintValue]));
+console.log(array[0])
+
 console.log(rapidJSON.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002, 2600000000000698546n, -2600000000000698546n]));
 console.log(JSON.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002]));
 
