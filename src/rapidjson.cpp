@@ -156,13 +156,18 @@ struct rapid_generate final {
             }
             case napi_bigint: {
                 int sign;
-                std::uint64_t val;
-                std::size_t count{1u};
+                constexpr auto size = 2u;
+                std::size_t count{size};
+                std::uint64_t val[size];
                 auto bigint = value.As<Napi::BigInt>();
-                bigint.ToWords(&sign, &count, &val);
-                if (sign)
-                    return rapidjson::Value{-(*reinterpret_cast<std::int64_t*>(&val))};
-                return rapidjson::Value{val}; 
+                bigint.ToWords(&sign, &count, val);
+                if (count < size) {
+                    if (sign)
+                        return rapidjson::Value{-(*reinterpret_cast<std::int64_t*>(val))};
+                    return rapidjson::Value{val[0]}; 
+                }
+                Napi::RangeError::New(value.Env(), "Only 64bit BigInt")
+                    .ThrowAsJavaScriptException();
             }
             default:;
         }
