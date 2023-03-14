@@ -38,3 +38,4 @@ const t3 = rapidJSON.stringify(json);
 console.log(t3);
 
 rapidJSON.forceBigInt(["id", "time"]);
+rapidJSON.forceBigInt([]);

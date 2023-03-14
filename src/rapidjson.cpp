@@ -376,21 +376,18 @@ private:
         keyword_ = std::move(k);
     }
 
-    Napi::Value forceBigInt(const Napi::CallbackInfo &info) 
+    void forceBigInt(const Napi::CallbackInfo& info) 
     {
-        auto env = info.Env();
-        if (info.Length() >= 1)
+        if (info.Length() < 1) 
         {
-            setupMixed(info[0].As<Napi::Array>(), false);
-            return env.Undefined();
-        }        
+            Napi::TypeError::New(info.Env(), "Wrong number of arguments")
+                .ThrowAsJavaScriptException();
+        }
 
-        Napi::TypeError::New(env, "Wrong number of arguments")
-            .ThrowAsJavaScriptException();
-        return env.Undefined();
+        setupMixed(info[0].As<Napi::Array>(), false);
     }
 
-    Napi::Value stringify(const Napi::CallbackInfo &info)
+    Napi::Value stringify(const Napi::CallbackInfo& info)
     {
         auto allocator = allocator_.get();
         allocator->Clear();
