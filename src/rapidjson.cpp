@@ -82,7 +82,7 @@ struct rapid_object final {
     template<class F>
     auto parseObject(const rapidjson::Value& elem, F num_fn) {
         auto res = Napi::Object::New(env);
-        for (auto& [name, val] : elem.GetObject()) {
+        for (auto&& [name, val] : elem.GetObject()) {
             auto key = name.GetString();
             res.Set(key, rapid_convert(val, env, num_fn));
         }
@@ -115,7 +115,6 @@ Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F numbe
     }
     return number(value, env);
 }
-
 
 struct rapid_generate final {
     rapidjson::Document& doc;
