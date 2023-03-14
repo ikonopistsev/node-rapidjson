@@ -13,6 +13,8 @@ using namespace Napi;
 
 namespace {
 
+constexpr auto number_max_safe = 9007199254740991u;
+
 template<class A>
 auto copyout(const Napi::Value& value, A& alloc) {
     auto env = value.Env();
@@ -34,9 +36,13 @@ struct rapid_number final {
         } else if (elem.IsUint()) {
             return Napi::Number::New(env, elem.GetUint());
         } else if (elem.IsInt64()) {
-            return Napi::BigInt::New(env, elem.GetInt64());
+            auto val = elem.GetInt64();
+            if (val > number_max_safe)
+                return Napi::BigInt::New(env, val);
         } else if (elem.IsUint64()) {
-            return Napi::BigInt::New(env, elem.GetUint64());
+            auto val = elem.GetInt64();
+            if (val > number_max_safe)
+                return Napi::BigInt::New(env, val);
         }
         return Napi::Number::New(env, elem.GetDouble());          
     }
@@ -49,8 +55,7 @@ struct rapid_number final {
         return Napi::Number::New(env, elem.GetDouble());
     }
     auto operator()(const rapidjson::Value& elem, Napi::Env& env) {
-        return is_mixed ? 
-            mixed(elem, env) : bigint(elem, env);
+        return is_mixed ? mixed(elem, env) : bigint(elem, env);
     }
 };
 
@@ -131,7 +136,6 @@ struct rapid_generate final {
                     return rapidjson::Value{rapidjson::kNullType};
                 if (val < 0) 
                     val = -val;
-                constexpr auto number_max_safe = 9007199254740991u;
                 if (val <= static_cast<double>(number_max_safe)) {
                     // Split the value into an integer part and a fractional part.
                     double integer = std::floor(val);
