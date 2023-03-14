@@ -14,7 +14,8 @@ using namespace Napi;
 namespace {
 
 template<class A>
-auto copyout( napi_value value, napi_env env, A& alloc) {
+auto copyout(const Napi::Value& value, A& alloc) {
+    auto env = value.Env();
     size_t length;
     napi_status status =
         napi_get_value_string_utf8(env, value, nullptr, 0, &length);
@@ -73,7 +74,6 @@ struct rapid_object final {
         auto res = Napi::Array::New(env, size);
         for (std::size_t i = 0; i < size; ++i) {
             auto& val = elem[i];
-            auto type = val.GetType();
             res.Set(i, rapid_convert(val, env, num_fn));
         }
         return res;
@@ -148,7 +148,7 @@ struct rapid_generate final {
                 return rapidjson::Value{number.DoubleValue()};
             }
             case napi_string: {
-                return rapidjson::Value{copyout(value, value.Env(), doc.GetAllocator())};
+                return rapidjson::Value{copyout(value, doc.GetAllocator())};
             }
             case napi_object: {
                 if (value.IsArray())
@@ -204,8 +204,8 @@ struct rapid_generate final {
         auto& alloc = doc.GetAllocator();
         rapidjson::Value arr{rapidjson::kObjectType};
         rapid_generate gen{doc};
-        for(auto&& elem: value) {
-            arr.AddMember(rapidjson::Value{copyout(elem.first, elem.first.Env(), alloc)}, 
+        for (auto&& elem: value) {
+            arr.AddMember(rapidjson::Value{copyout(elem.first, alloc)}, 
                 gen(elem.second), alloc);
         }
         return arr;
@@ -216,7 +216,7 @@ struct rapid_generate final {
         auto& alloc = doc.GetAllocator();
         rapid_generate gen{doc};
         for(auto&& elem: value) {
-            doc.AddMember(rapidjson::Value{copyout(elem.first, elem.first.Env(), alloc)}, 
+            doc.AddMember(rapidjson::Value{copyout(elem.first, alloc)}, 
                 gen(elem.second), alloc);
         }
     
@@ -294,7 +294,7 @@ private:
         allocator->Clear();
         
         rapidjson::Document d(allocator);
-        auto json = copyout(value, env, d.GetAllocator());
+        auto json = copyout(value, d.GetAllocator());
         d.Parse(json, json.length);
         if (d.HasParseError()) 
         {
@@ -404,7 +404,7 @@ private:
             return env.Undefined();
         }
 
-        const auto& value = info[0];
+        auto value = info[0];
         if (!value.IsEmpty()) 
         {
             rapidjson::Document doc(allocator);
