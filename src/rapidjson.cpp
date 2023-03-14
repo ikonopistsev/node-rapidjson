@@ -5,7 +5,6 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/internal/ieee754.h"
 #include <limits>
-#include <string_view>
 #include <unordered_map>
 #include <cmath>
 #include <napi.h>
@@ -13,6 +12,18 @@
 using namespace Napi;
 
 namespace {
+
+template<class A>
+auto copyout( napi_value value, napi_env env, A& alloc) {
+    size_t length;
+    napi_status status =
+        napi_get_value_string_utf8(env, value, nullptr, 0, &length);
+    NAPI_THROW_IF_FAILED(env, status, "");
+    auto buf = static_cast<char*>(alloc.Malloc(++length));
+    status = napi_get_value_string_utf8(env, value, buf, length, &length);
+    NAPI_THROW_IF_FAILED(env, status, "");
+    return rapidjson::StringRef(buf, length);
+}
 
 struct rapid_number final {
     bool is_mixed{false};
@@ -36,7 +47,7 @@ struct rapid_number final {
         }
         return Napi::Number::New(env, elem.GetDouble());
     }
-    Napi::Value operator()(const rapidjson::Value& elem, Napi::Env& env) {
+    auto operator()(const rapidjson::Value& elem, Napi::Env& env) {
         return is_mixed ? 
             mixed(elem, env) : bigint(elem, env);
     }
@@ -44,7 +55,7 @@ struct rapid_number final {
 
 struct rapid_string final {
     Napi::Env& env;
-    Napi::Value operator()(const rapidjson::Value& elem) {
+    auto operator()(const rapidjson::Value& elem) {
         return Napi::String::New(env, elem.GetString(), 
             elem.GetStringLength());               
     }    
@@ -57,7 +68,7 @@ struct rapid_object final {
     Napi::Env& env;
 
     template<class F>
-    Napi::Value parseArray(const rapidjson::Value& elem, F num_fn) {
+    auto parseArray(const rapidjson::Value& elem, F num_fn) {
         auto size = elem.Size();
         auto res = Napi::Array::New(env, size);
         for (std::size_t i = 0; i < size; ++i) {
@@ -69,7 +80,7 @@ struct rapid_object final {
     }
 
     template<class F>
-    Napi::Value parseObject(const rapidjson::Value& elem, F num_fn) {
+    auto parseObject(const rapidjson::Value& elem, F num_fn) {
         auto res = Napi::Object::New(env);
         for (auto& [name, val] : elem.GetObject()) {
             auto key = name.GetString();
@@ -108,7 +119,7 @@ Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F numbe
 
 struct rapid_generate final {
     rapidjson::Document& doc;
-    rapidjson::Value operator()(const Napi::Value& value) {
+    auto operator()(const Napi::Value& value) {
         switch (value.Type()) {
             case napi_boolean:
                 if (value.As<Napi::Boolean>().Value())
@@ -136,9 +147,9 @@ struct rapid_generate final {
                 }
                 return rapidjson::Value{number.DoubleValue()};
             }
-            case napi_string:
-                return rapidjson::Value{std::string{value.ToString()}, 
-                    doc.GetAllocator()};
+            case napi_string: {
+                return rapidjson::Value{copyout(value, value.Env(), doc.GetAllocator())};
+            }
             case napi_object: {
                 if (value.IsArray())
                     return rapidArray(value.As<Napi::Array>());
@@ -171,7 +182,7 @@ struct rapid_generate final {
         return arr;
     }
 
-    Napi::Value rapidArrayDocument(Napi::Env& env, const Napi::Array& value) {
+    auto rapidArrayDocument(Napi::Env& env, const Napi::Array& value) {
         auto size = value.Length();
         auto& alloc = doc.GetAllocator();
         doc.SetArray();
@@ -194,20 +205,18 @@ struct rapid_generate final {
         rapidjson::Value arr{rapidjson::kObjectType};
         rapid_generate gen{doc};
         for(auto&& elem: value) {
-            auto key = std::string{elem.first.ToString()};
-            arr.AddMember(rapidjson::Value{key, alloc}, 
+            arr.AddMember(rapidjson::Value{copyout(elem.first, elem.first.Env(), alloc)}, 
                 gen(elem.second), alloc);
         }
         return arr;
     }
 
-    Napi::Value rapidObjectDocument(Napi::Env& env, const Napi::Object& value) {
+    auto rapidObjectDocument(Napi::Env& env, const Napi::Object& value) {
         doc.SetObject();
         auto& alloc = doc.GetAllocator();
         rapid_generate gen{doc};
         for(auto&& elem: value) {
-            auto key = std::string{elem.first.ToString()};
-            doc.AddMember(rapidjson::Value{key, alloc}, 
+            doc.AddMember(rapidjson::Value{copyout(elem.first, elem.first.Env(), alloc)}, 
                 gen(elem.second), alloc);
         }
     
@@ -219,7 +228,7 @@ struct rapid_generate final {
             buffer.GetString(), buffer.GetSize());
     }    
 
-    Napi::Value rapidDocument(Napi::Env& env, const Napi::Value& value) {
+    auto rapidDocument(Napi::Env& env, const Napi::Value& value) {
         if (napi_object == value.Type()) {
             rapid_generate gen{doc};
             if (value.IsArray()) {
@@ -279,13 +288,14 @@ public:
 
 private:
     template<class F>
-    Napi::Value parse(const std::string& text, Napi::Env& env, F number)
+    auto parse(const Napi::Value& value, Napi::Env& env, F number)
     {        
         auto allocator = allocator_.get();
         allocator->Clear();
         
         rapidjson::Document d(allocator);
-        d.Parse(text);
+        auto json = copyout(value, env, d.GetAllocator());
+        d.Parse(json, json.length);
         if (d.HasParseError()) 
         {
             std::string err("Error at offset ");
@@ -327,7 +337,7 @@ private:
             return env.Null();
         }
 
-        return parse(arg0.ToString(), env, rapid_number{true});
+        return parse(arg0, env, rapid_number{true});
     }
 
     Napi::Value parseBigInt(const Napi::CallbackInfo &info)
@@ -352,7 +362,7 @@ private:
             return env.Null();
         }
 
-        return parse(arg0.ToString(), env, rapid_number{});
+        return parse(arg0, env, rapid_number{});
     }
 
     void setupMixed(const Napi::Array& arr, bool is_mixed)
