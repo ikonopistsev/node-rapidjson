@@ -203,7 +203,8 @@ struct rapid_generate final {
         }
 
         RapidStringBuffer buffer{&alloc};
-        rapidjson::Writer<RapidStringBuffer> writer(buffer);
+        rapidjson::Writer<RapidStringBuffer, rapidjson::UTF8<>, 
+            rapidjson::UTF8<>, RapidAllocator> writer{buffer, &alloc};
         doc.Accept(writer);
 
         return Napi::String::New(env, 
@@ -231,7 +232,8 @@ struct rapid_generate final {
         }
     
         RapidStringBuffer buffer{&alloc};
-        rapidjson::Writer<RapidStringBuffer> writer(buffer);
+        rapidjson::Writer<RapidStringBuffer, rapidjson::UTF8<>, 
+            rapidjson::UTF8<>, RapidAllocator> writer{buffer, &alloc};
         doc.Accept(writer);
 
         return Napi::String::New(env, 
