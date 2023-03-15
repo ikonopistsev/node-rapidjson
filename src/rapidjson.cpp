@@ -14,6 +14,7 @@ using namespace Napi;
 namespace {
 
 constexpr auto number_max_safe = 9007199254740991u;
+using RapidAllocator = rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>;
 
 template<class A>
 auto copyout(const Napi::Value& value, A& alloc) {
@@ -122,6 +123,7 @@ Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F numbe
 }
 
 struct rapid_generate final {
+    using RapidStringBuffer = rapidjson::GenericStringBuffer<rapidjson::UTF8<>, RapidAllocator>;
     rapidjson::Document& doc;
     auto operator()(const Napi::Value& value) {
         switch (value.Type()) {
@@ -200,8 +202,8 @@ struct rapid_generate final {
             doc.PushBack(gen(value[i]), alloc);
         }
 
-        rapidjson::StringBuffer buffer;
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        RapidStringBuffer buffer{&alloc};
+        rapidjson::Writer<RapidStringBuffer> writer(buffer);
         doc.Accept(writer);
 
         return Napi::String::New(env, 
@@ -228,8 +230,8 @@ struct rapid_generate final {
                 gen(elem.second), alloc);
         }
     
-        rapidjson::StringBuffer buffer;
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        RapidStringBuffer buffer{&alloc};
+        rapidjson::Writer<RapidStringBuffer> writer(buffer);
         doc.Accept(writer);
 
         return Napi::String::New(env, 
@@ -253,7 +255,6 @@ struct rapid_generate final {
 class RapidJSON final
     : public ObjectWrap<RapidJSON>
 {
-    using RapidAllocator = rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>;
     using keyword_type = std::unordered_map<std::string, rapid_number>;
     static constexpr auto alloc_min = std::size_t{2048u};
     static constexpr auto alloc_def = std::size_t{128u * alloc_min};
