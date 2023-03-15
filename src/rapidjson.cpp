@@ -204,7 +204,7 @@ struct rapid_generate final {
         }
 
         RapidAllocator allocBuf{alloc.Malloc(output_size), output_size};
-        RapidStringBuffer buffer{&allocBuf};
+        RapidStringBuffer buffer{&allocBuf, output_size / 4};
         rapidjson::Writer<RapidStringBuffer, rapidjson::UTF8<>, 
             rapidjson::UTF8<>, RapidAllocator> writer{buffer, &alloc};
         doc.Accept(writer);
@@ -234,7 +234,7 @@ struct rapid_generate final {
         }
     
         RapidAllocator allocBuf{alloc.Malloc(output_size), output_size};
-        RapidStringBuffer buffer{&allocBuf};
+        RapidStringBuffer buffer{&allocBuf, output_size / 4};
         rapidjson::Writer<RapidStringBuffer, rapidjson::UTF8<>, 
             rapidjson::UTF8<>, RapidAllocator> writer{buffer, &alloc};
         doc.Accept(writer);
