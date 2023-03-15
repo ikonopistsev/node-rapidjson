@@ -125,6 +125,7 @@ Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F numbe
 struct rapid_generate final {
     using RapidStringBuffer = rapidjson::GenericStringBuffer<rapidjson::UTF8<>, RapidAllocator>;
     rapidjson::Document& doc;
+    std::size_t output_size{ 64 * 1024u };
     auto operator()(const Napi::Value& value) {
         switch (value.Type()) {
             case napi_boolean:
@@ -202,7 +203,7 @@ struct rapid_generate final {
             doc.PushBack(gen(value[i]), alloc);
         }
 
-        RapidStringBuffer buffer{&alloc, 64*1024u};
+        RapidStringBuffer buffer{&alloc, output_size};
         rapidjson::Writer<RapidStringBuffer, rapidjson::UTF8<>, 
             rapidjson::UTF8<>, RapidAllocator> writer{buffer, &alloc};
         doc.Accept(writer);
@@ -231,7 +232,7 @@ struct rapid_generate final {
                 gen(elem.second), alloc);
         }
     
-        RapidStringBuffer buffer{&alloc, 64*1024u};
+        RapidStringBuffer buffer{&alloc, output_size};
         rapidjson::Writer<RapidStringBuffer, rapidjson::UTF8<>, 
             rapidjson::UTF8<>, RapidAllocator> writer{buffer, &alloc};
         doc.Accept(writer);
@@ -416,7 +417,7 @@ private:
         if (!value.IsEmpty()) 
         {
             rapidjson::Document doc(allocator);
-            rapid_generate gen{doc};
+            rapid_generate gen{doc, alloc_size_ / 2};
             return gen.rapidDocument(env, value);
         }
         return env.Undefined();
