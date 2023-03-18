@@ -30,6 +30,7 @@ let json = {
 }
 
 const t1 = rapidJSON.stringify(json);
+rapidJSON.forceBigInt(["postalCode"]);
 const t2 = JSON.stringify(json);
 console.log(t1);
 console.log(t2);
@@ -38,5 +39,4 @@ json.bigNumbers = [2600000000000698546n, -2600000000000698546n, NaN];
 const t3 = rapidJSON.stringify(json);
 console.log(t3);
 
-rapidJSON.forceBigInt(["id", "time"]);
 rapidJSON.forceBigInt([]);

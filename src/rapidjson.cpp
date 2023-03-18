@@ -68,11 +68,15 @@ struct rapid_string final {
     }    
 };
 
+using keyword_type = std::unordered_map<std::string, rapid_number>;
+
 template<class F>
-Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F number);
+Napi::Value rapid_convert(const rapidjson::Value& value, 
+    Napi::Env& env, keyword_type& keyword, F number);
 
 struct rapid_object final {
     Napi::Env& env;
+    keyword_type& keyword;
 
     template<class F>
     auto parseArray(const rapidjson::Value& elem, F num_fn) {
@@ -80,7 +84,7 @@ struct rapid_object final {
         auto res = Napi::Array::New(env, size);
         for (std::size_t i = 0; i < size; ++i) {
             auto& val = elem[i];
-            res.Set(i, rapid_convert(val, env, num_fn));
+            res.Set(i, rapid_convert(val, env, keyword, num_fn));
         }
         return res;
     }
@@ -90,14 +94,21 @@ struct rapid_object final {
         auto res = Napi::Object::New(env);
         for (auto&& [name, val] : elem.GetObject()) {
             auto key = name.GetString();
-            res.Set(key, rapid_convert(val, env, num_fn));
+            if (!keyword.empty()) {
+                auto f = keyword.find(key);
+                if (f != keyword.end()) {
+                    num_fn = f->second;
+                }
+            }
+            res.Set(key, rapid_convert(val, env, keyword, num_fn));
         }
         return res;        
     }
 };
 
 template<class F>
-Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F number) {
+Napi::Value rapid_convert(const rapidjson::Value& value, 
+    Napi::Env& env, keyword_type& keyword, F number) {
     switch (value.GetType()) {
         case rapidjson::kNullType:
             return env.Null();
@@ -106,11 +117,11 @@ Napi::Value rapid_convert(const rapidjson::Value& value, Napi::Env& env, F numbe
         case rapidjson::kTrueType:
             return Napi::Boolean::New(env, true);
         case rapidjson::kObjectType: {
-            rapid_object f{env};
+            rapid_object f{env, keyword};
             return f.parseObject(value, number);
         };
         case rapidjson::kArrayType: {
-            rapid_object f{env};
+            rapid_object f{env, keyword};
             return f.parseArray(value, number);
         };
         case rapidjson::kStringType: {
@@ -260,8 +271,7 @@ struct rapid_generate final {
 class RapidJSON final
     : public ObjectWrap<RapidJSON>
 {
-    using keyword_type = std::unordered_map<std::string, rapid_number>;
-    static constexpr auto alloc_min = std::size_t{2048u};
+    static constexpr auto alloc_min = std::size_t{2048u}; // 256kb total
     static constexpr auto alloc_def = std::size_t{128u * alloc_min};
     std::size_t alloc_size_{alloc_def};
     std::unique_ptr<char[]> buffer_{};
@@ -321,7 +331,7 @@ private:
             return env.Null();
         }
 
-        return rapid_convert(d, env, number);
+        return rapid_convert(d, env, keyword_, number);
     }
 
     Napi::Value parse(const Napi::CallbackInfo &info)
@@ -419,7 +429,8 @@ private:
         if (!value.IsEmpty()) 
         {
             rapidjson::Document doc(allocator);
-            rapid_generate gen{doc, alloc_size_ * 2 / 3};
+            rapid_generate gen{doc, 
+                static_cast<std::size_t>(alloc_size_ * 1.618)};
             return gen.rapidDocument(env, value);
         }
         return env.Undefined();
