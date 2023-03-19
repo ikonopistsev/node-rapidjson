@@ -45,6 +45,7 @@ struct rapid_number final {
             if (val > number_max_safe)
                 return Napi::BigInt::New(env, val);
         }
+
         return Napi::Number::New(env, elem.GetDouble());          
     }
     Napi::Value bigint(const rapidjson::Value& elem, Napi::Env& env) {
@@ -53,6 +54,7 @@ struct rapid_number final {
         } else if (elem.IsUint64()) {
             return Napi::BigInt::New(env, elem.GetUint64());
         }
+
         return Napi::Number::New(env, elem.GetDouble());
     }
     auto operator()(const rapidjson::Value& elem, Napi::Env& env) {
@@ -86,6 +88,7 @@ struct rapid_object final {
             auto& val = elem[i];
             res.Set(i, rapid_convert(val, env, keyword, num_fn));
         }
+
         return res;
     }
 
@@ -100,8 +103,10 @@ struct rapid_object final {
                     num_fn = f->second;
                 }
             }
+
             res.Set(key, rapid_convert(val, env, keyword, num_fn));
         }
+
         return res;        
     }
 };
@@ -130,6 +135,7 @@ Napi::Value rapid_convert(const rapidjson::Value& value,
         }
         default: ;
     }
+
     return number(value, env);
 }
 
@@ -232,6 +238,7 @@ struct rapid_generate final {
             arr.AddMember(rapidjson::Value{copyout(elem.first, alloc)}, 
                 gen(elem.second), alloc);
         }
+
         return arr;
     }
 
@@ -260,8 +267,10 @@ struct rapid_generate final {
             if (value.IsArray()) {
                 return gen.rapidArrayDocument(env, value.As<Napi::Array>());
             }
+
             return gen.rapidObjectDocument(env, value.As<Napi::Object>());
         }
+
         return value.ToString();
     }
 };
@@ -391,14 +400,15 @@ private:
 
     void setupMixed(const Napi::Array& arr, bool is_mixed)
     {
-        keyword_type k;
+        keyword_type keyword;
         for (std::size_t i = 0; i < arr.Length(); ++i) 
         {
             auto text = std::string{arr.Get(i).As<Napi::String>()};
-            k.emplace(std::move(text), rapid_number{is_mixed});
+            if (!text.empty())
+                keyword.emplace(std::move(text), rapid_number{is_mixed});
         }
 
-        keyword_ = std::move(k);
+        keyword_.swap(keyword);
     }
 
     void forceBigInt(const Napi::CallbackInfo& info) 
@@ -433,6 +443,7 @@ private:
                 static_cast<std::size_t>(alloc_size_ * 1.618)};
             return gen.rapidDocument(env, value);
         }
+        
         return env.Undefined();
     }
 };

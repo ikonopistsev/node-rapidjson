@@ -31,6 +31,9 @@ let json = {
 
 const t1 = rapidJSON.stringify(json);
 rapidJSON.forceBigInt(["postalCode"]);
+console.log(rapidJSON.parse(t1));
+rapidJSON.forceBigInt([]);
+console.log(rapidJSON.parse(t1));
 const t2 = JSON.stringify(json);
 console.log(t1);
 console.log(t2);
