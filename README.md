@@ -29,5 +29,5 @@ On Windows:
 ## Installation
 
 ```bash
-npm i @ikonopistsev@node-rapidjson
+npm i @ikonopistsev/node-rapidjson
 ```
