@@ -1,6 +1,6 @@
 {
   "name": "@ikonopistsev/node-rapidjson",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "rapidjson parser and geneartor, for javascript BigInt",
   "main": "index.js",
   "scripts": {

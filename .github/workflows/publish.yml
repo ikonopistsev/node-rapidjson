@@ -9,7 +9,7 @@ jobs:
             - name: checkout
               uses: actions/checkout@v2
               with:
-                submodules: 'true'           
+                submodules: 'true'
             - name: node
               uses: actions/setup-node@v2
               with:
