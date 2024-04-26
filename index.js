@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 
-let modulePath = "./build/Release/"
-const moduleFile = "node-rapidjson"
+let modulePath = "build/Release/";
+const moduleFile = "node-rapidjson.node";
 
 if (fs.existsSync(moduleFile)) {
     modulePath = moduleFile;
@@ -9,5 +9,5 @@ if (fs.existsSync(moduleFile)) {
     modulePath += moduleFile;
 }
 
-const { RapidJSON } = require(modulePath);
+const { RapidJSON } = require("./" + modulePath);
 module.exports = RapidJSON;

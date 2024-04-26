@@ -1,6 +1,6 @@
 {
   "name": "@ikonopistsev/node-rapidjson",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "description": "rapidjson parser and geneartor, for javascript BigInt",
   "main": "index.js",
   "scripts": {
@@ -12,8 +12,9 @@
   "author": "Igor Ikonopistsev",
   "license": "Apache-2.0",
   "dependencies": {
-    "node-addon-api": "^6.0.0",
-    "cmake-js": "^7.2.1"
+    "@ikonopistsev/node-rapidjson": "^1.0.24",
+    "cmake-js": "^7.2.1",
+    "node-addon-api": "^6.0.0"
   },
   "repository": {
     "type": "git",
