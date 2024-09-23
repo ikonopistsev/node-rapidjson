@@ -3,13 +3,17 @@ cmake_minimum_required(VERSION 3.18)
 # Name of the project (will be the name of the plugin)
 project(node-rapidjson)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(${PROJECT_NAME} SHARED 
-	src/rapidjson.cpp
+    src/rapid_module.cpp
+    src/rapid_document.cpp
+    src/rapid_basic_document.cpp
+    src/rapid_schema.cpp
 )
 
+# nodejs use sse2
 add_definitions(-DRAPIDJSON_HAS_STDSTRING=1 -DRAPIDJSON_SSE2=1)
 include_directories(ext/rapidjson/include)
 
