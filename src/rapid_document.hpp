@@ -14,8 +14,6 @@ public:
 
     Document(const Napi::CallbackInfo& i);
 
-    //~Document();
-
     Napi::Value hasParseError(const Napi::CallbackInfo& i);
 
     Napi::Value parseError(const Napi::CallbackInfo& i);

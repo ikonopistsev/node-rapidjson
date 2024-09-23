@@ -9,10 +9,8 @@ const JSG = (value) => {
   });
 };
 
-const JSP = (json, doc, path) => {
-  if (!(doc && (doc instanceof RapidJSON.Document))) {
-    doc = new RapidJSON.Document();
-  }
+const JSP = (json, path) => {
+  const doc = new RapidJSON.Document();
   if (typeof json !== "buffer") {
     json = Buffer.from(json);
   }

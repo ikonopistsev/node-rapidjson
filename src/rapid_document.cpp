@@ -2,7 +2,6 @@
 #include "rapid_convert.hpp"
 #include "rapid_fnv1a.hpp"
 #include "rapidjson/error/en.h"
-//#include <iostream>
 #include <limits>
 #include <cmath>
 #include <ranges>
@@ -24,11 +23,6 @@ Document::Document(const Napi::CallbackInfo& i)
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
     }
 }
-
-// Document::~Document()
-// {
-//     //std::cout << "Document::~Document" << std::endl;
-// }
 
 Napi::Value Document::hasParseError(const Napi::CallbackInfo& i)
 {
@@ -108,17 +102,16 @@ Napi::Value Document::getResult(const Napi::CallbackInfo& i)
         if (arg0.IsArray())
         {
             auto arr = arg0.As<Napi::Array>();
-            auto size = arr.Length();
-            // Создаем диапазон индексов от 0 до size
-            auto indices = std::views::iota(0u, size);
+            // Создаем диапазон индексов от 0 до Length
+            auto idx = std::views::iota(0u, arr.Length());
             // Создаем трансформированный диапазон значений
-            auto values = indices | std::views::transform([&arr](auto index) {
+            auto pointer = idx | std::views::transform([&arr](auto index) {
                 auto number = arr.Get(index).ToNumber();
                 return number.Uint32Value();
             });
             // объявляем функтор проверки пути с использованием std::ranges::any_of
             auto fn = [&](auto f) {
-                return std::ranges::binary_search(values, f);
+                return std::ranges::binary_search(pointer, f);
             };
 
             auto f = convert(env, fn);

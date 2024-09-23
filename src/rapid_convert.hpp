@@ -121,39 +121,6 @@ struct RapidArray final
     }
 };
 
-// template<class F>
-// struct RapidArray final 
-// {
-//     Napi::Env& env;
-//     fnv1a hf;
-//     F& fn;
-
-//     Napi::Value operator()(const rapidjson::Value& elem) const
-//     {
-//         using namespace std::string_view_literals;
-//         auto size = elem.Size();
-//         auto res = Napi::Array::New(env, size);
-//         auto hashval = hf("*");
-
-//         // Создаем диапазон индексов от 0 до size
-//         auto indexRange = std::ranges::iota_view(0u, size);
-
-//         // Преобразуем каждый элемент с помощью std::views::transform
-//         auto elements = indexRange | std::views::transform([&](std::size_t i) {
-//             auto& val = elem[i];
-//             RapidConvert f{env, hashval, fn};
-//             return f(val);
-//         });
-
-//         // Заполняем Napi::Array через ranges::for_each
-//         std::ranges::for_each(elements, [&](auto& napiValue, std::size_t i) {
-//             res.Set(i, napiValue);
-//         });
-
-//         return res;
-//     }
-// };
-
 struct RapidString final 
 {
     Napi::Env& env;

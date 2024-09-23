@@ -1,15 +1,37 @@
 const RapidJSON = require("./index.js");
-const rapidJSON = new RapidJSON();
+const FNV1a = RapidJSON.FNV1a;
+const hf = new FNV1a();
+
+const JSG = (value) => {
+    return JSON.stringify(value, (_, value) => {
+        return typeof value === "bigint" ? JSON.rawJSON(value) : value;
+    });
+};
+
+const JSP = (json, pointer) => {
+    const doc = new RapidJSON.Document();
+    if (typeof json !== "buffer") {
+        json = Buffer.from(json);
+    }
+    doc.parse(json);
+    if (doc.hasParseError()) {
+        throw new Error(`${doc.parseMessage()} offset:${doc.parseOffset()}`);
+    }
+    return doc.getResult(pointer);
+};
+
+const JSM = RapidJSON.pointerMap;
+
 const bigintValue = BigInt(2600000000000698546n);
-const array = rapidJSON.parse(rapidJSON.stringify([bigintValue]));
+const array = JSP(JSG([bigintValue]), JSM(["#/*"]));
 console.log(array[0])
 
-console.log(rapidJSON.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, 
+console.log(JSG([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, 
         -1.0000000000000002, 2600000000000698546n, -2600000000000698546n]));
-console.log(JSON.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002]));
+console.log(JSG([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002]));
 
 const int64max = 9007199254740991;
-console.log(rapidJSON.stringify(int64max));
+console.log(JSG(int64max));
 console.log(JSON.stringify(int64max));
 
 let json = {
@@ -29,17 +51,8 @@ let json = {
     ]
 }
 
-const t1 = rapidJSON.stringify(json);
-rapidJSON.forceBigInt(["postalCode"]);
-console.log(rapidJSON.parse(t1));
-rapidJSON.forceBigInt([]);
-console.log(rapidJSON.parse(t1));
-const t2 = JSON.stringify(json);
+const t1 = JSG(JSP(JSG(json)));
+const t2 = JSG(JSON.parse(JSG(json)));
 console.log(t1);
 console.log(t2);
 console.log(t2 == t1);
-json.bigNumbers = [2600000000000698546n, -2600000000000698546n, NaN];
-const t3 = rapidJSON.stringify(json);
-console.log(t3);
-
-rapidJSON.forceBigInt([]);
