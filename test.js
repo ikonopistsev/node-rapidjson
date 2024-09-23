@@ -1,37 +1,20 @@
 const RapidJSON = require("./index.js");
-const FNV1a = RapidJSON.FNV1a;
-const hf = new FNV1a();
+const makeRapidPointer = RapidJSON.makeRapidPointer;
+const RapidParser = RapidJSON.RapidParser;
 
-const JSG = (value) => {
-    return JSON.stringify(value, (_, value) => {
-        return typeof value === "bigint" ? JSON.rawJSON(value) : value;
-    });
-};
-
-const JSP = (json, pointer) => {
-    const doc = new RapidJSON.Document();
-    if (typeof json !== "buffer") {
-        json = Buffer.from(json);
-    }
-    doc.parse(json);
-    if (doc.hasParseError()) {
-        throw new Error(`${doc.parseMessage()} offset:${doc.parseOffset()}`);
-    }
-    return doc.getResult(pointer);
-};
-
-const JSM = RapidJSON.pointerMap;
+const JSONMOU = new RapidParser();
+const arrayPointer = makeRapidPointer(["#/*"]);
 
 const bigintValue = BigInt(2600000000000698546n);
-const array = JSP(JSG([bigintValue]), JSM(["#/*"]));
-console.log(array[0])
+const array = JSONMOU.parse(JSONMOU.stringify([bigintValue]), arrayPointer);
+console.log(array[0]);
 
-console.log(JSG([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, 
+console.log(JSONMOU.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, 
         -1.0000000000000002, 2600000000000698546n, -2600000000000698546n]));
-console.log(JSG([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002]));
+console.log(JSONMOU.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002]));
 
 const int64max = 9007199254740991;
-console.log(JSG(int64max));
+console.log(JSONMOU.stringify(int64max));
 console.log(JSON.stringify(int64max));
 
 let json = {
@@ -51,8 +34,8 @@ let json = {
     ]
 }
 
-const t1 = JSG(JSP(JSG(json)));
-const t2 = JSG(JSON.parse(JSG(json)));
+const t1 = JSONMOU.stringify(JSONMOU.parse(JSONMOU.stringify(json)));
+const t2 = JSONMOU.stringify(JSON.parse(JSONMOU.stringify(json)));
 console.log(t1);
 console.log(t2);
 console.log(t2 == t1);
