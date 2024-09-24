@@ -109,10 +109,11 @@ console.log(JSONR.parse(example5, pointer));
 // const makeRapidPointer = RapidJSON.makeRapidPointer;
 // const JSONR = new RapidParser();
 // const bigintValue = BigInt(2600000000000698546n);
-// // parsed as BigInt
-// const array1 = JSONR.parse(JSONR.stringify([bigintValue]), makeRapidPointer(["#/*"]));
+// const rapidPointer = makeRapidPointer(["#/*"]);
+// // parsed as BigInt // 2600000000000698546n
+// const array1 = JSONR.parse(JSONR.stringify([bigintValue]), rapidPointer);
 // console.log(array1[0]);
-// // parsed as Number
+// // parsed as Number // 2600000000000698400
 // const array2 = JSONR.parse(JSONR.stringify([bigintValue]));
 // console.log(array2[0]);
 
