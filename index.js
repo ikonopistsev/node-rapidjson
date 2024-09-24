@@ -5,7 +5,7 @@ nativeModule.FNV1a = require('./fnv1a.js');
 
 nativeModule.pointerMap = (items) => {
     const hf = new nativeModule.FNV1a();
-    return items.map(id => hf.hash(id)).sort();
+    return items.map(id => hf.hash(id)).sort((a, b) => a - b);
 };
 
 class RapidPointer {

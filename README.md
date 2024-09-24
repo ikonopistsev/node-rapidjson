@@ -6,10 +6,17 @@ The library was created to simplify working with BigInt in nodejs. Support 32-bi
 
 ```js
 const RapidJSON = require("@ikonopistsev/node-rapidjson");
-const rapidJSON = new RapidJSON();
+const RapidParser = RapidJSON.RapidParser;
+const makeRapidPointer = RapidJSON.makeRapidPointer;
+const JSONR = new RapidParser();
 const bigintValue = BigInt(2600000000000698546n);
-const array = rapidJSON.parse(rapidJSON.stringify([bigintValue]));
-console.log(array[0]);
+// parsed as BigInt
+const array1 = JSONR.parse(JSONR.stringify([bigintValue]), makeRapidPointer(["#/*"]));
+console.log(array1[0]);
+// parsed as Number
+const array2 = JSONR.parse(JSONR.stringify([bigintValue]));
+console.log(array2[0]);
+
 ```
 
 Supported platforms:
