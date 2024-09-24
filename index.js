@@ -31,7 +31,7 @@ class RapidParser {
         document.parse(json);
 
         if (document.hasParseError()) {
-          throw new Error(`${document.parseMessage()} offset:${document.parseOffset()}`);
+            throw new Error(`${document.parseMessage()} offset:${document.parseOffset()}`);
         }
 
         return (pointer instanceof RapidPointer) ?

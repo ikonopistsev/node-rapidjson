@@ -4,7 +4,6 @@ const RapidParser = RapidJSON.RapidParser;
 
 const JSONMOU = new RapidParser();
 const arrayPointer = makeRapidPointer(["#/*"]);
-
 const bigintValue = BigInt(2600000000000698546n);
 const array = JSONMOU.parse(JSONMOU.stringify([bigintValue]), arrayPointer);
 console.log(array[0]);
