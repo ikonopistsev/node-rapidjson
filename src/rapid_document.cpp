@@ -6,7 +6,7 @@
 #include <cmath>
 #include <ranges>
 #include <napi.h>
-#include <iostream>
+//#include <iostream>
 
 using namespace std::string_view_literals;
 
@@ -99,11 +99,14 @@ Napi::Value Document::getResult(const Napi::CallbackInfo& i)
     if (i.Length() == 1)
     {
         auto& arg0 = i[0];
-        // аргумент должен быть массивом
-        // массив должен быть отсортирован
-        if (arg0.IsArray())
+        // arg0 это объект со свойстом level типа Array
+        if (arg0.IsObject())
         {
-            auto arr = arg0.As<Napi::Array>();
+            auto obj = arg0.As<Napi::Object>();
+            auto pointer = obj.Get("pointer");
+            auto arr = pointer.As<Napi::Array>();
+            // аргумент должен быть массивом
+            // массив должен быть отсортирован
             //std::cout << "Document::getResult" << std::endl;
             return getResult(env, arr, 0);
         }

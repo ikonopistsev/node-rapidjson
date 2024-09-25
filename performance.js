@@ -25,9 +25,25 @@ for (let i = 0; i < testDataSize; ++i) {
 };
 
 let count = 1000000;
-let k = BigInt(0);
+let j = BigInt(0);
+const rapidPointer = makeRapidPointer(["#/iWillBigInt", "#/someArray/*/someId", "#/regularNumber"]);
+//const rapidPointer = makeRapidPointer(["#/regularNumber"]);
 
 let t = new Date();
+
+for (let i = 0; i < count; ++i) {
+    if (!document.parse(testData[i % testDataSize])) {
+        throw new Error(`document: ${document.parseMessage()} offset:${document.parseOffset()}`);
+    }
+    const rc = document.getResult(rapidPointer);
+    j += rc.regularNumber;
+}
+
+console.log("rapidjson", (new Date() - t) / 1000.0, "ms");
+
+let k = BigInt(0);
+
+t = new Date();
 
 for (let i = 0; i < count; ++i) {
     const rc = JSON.parse(textData[i % testDataSize], (key, value, context) => {
@@ -45,22 +61,6 @@ for (let i = 0; i < count; ++i) {
 }
 
 console.log("JSON", (new Date() - t) / 1000.0, "ms");
-
-const rapidPointer = makeRapidPointer(["#/iWillBigInt", "#/someArray/*/someId", "#/regularNumber"]).level;
-//const rapidPointer = makeRapidPointer(["#/regularNumber"]).level;
-let j = BigInt(0);
-
-t = new Date();
-
-for (let i = 0; i < count; ++i) {
-    if (!document.parse(testData[i % testDataSize])) {
-        throw new Error(`document: ${document.parseMessage()} offset:${document.parseOffset()}`);
-    }
-    const rc = document.getResult(rapidPointer);
-    j += rc.regularNumber;
-}
-
-console.log("rapidjson", (new Date() - t) / 1000.0, "ms");
 
 function field64(input, fields) {
     let output = input;

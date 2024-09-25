@@ -15,7 +15,7 @@ nativeModule.FNV1a = require('./fnv1a.js');
 
 class RapidPointer {
     constructor(items) {
-        this.level = this.parsePointer(items);
+        this.pointer = this.parsePointer(items);
     }
 
     parsePointer(items) {
@@ -76,7 +76,7 @@ class RapidParser {
         }
 
         return (pointer instanceof RapidPointer) ?
-            document.getResult(pointer.level) :
+            document.getResult(pointer) :
             document.getResult();
     }
 

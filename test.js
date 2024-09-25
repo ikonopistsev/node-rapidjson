@@ -102,7 +102,7 @@ const example5 = Buffer.from(JSONR.stringify({
 // only obj.bigInt and someId will be BigInt
 const p = ["#/iWillBigInt", "#/someArray/*/someId"];
 const pointer = makeRapidPointer(p);
-console.log(p, JSON.stringify(pointer.level));
+console.log(p, JSON.stringify(pointer));
 console.log(JSONR.parse(example5, pointer));
 
 const example6 = Buffer.from(JSONR.stringify([
@@ -112,13 +112,13 @@ const example6 = Buffer.from(JSONR.stringify([
   
 const p2 = ["#/*"];
 const pointer2 = makeRapidPointer(p2);
-console.log(p2, JSON.stringify(pointer2.level));
+console.log(p2, JSON.stringify(pointer2));
 console.log(JSONR.parse(example6, pointer2));
 
 const example7 = Buffer.from(JSONR.stringify(BigInt(9223372036854775801n)));
 const p3 = ["#"];
 const pointer3 = makeRapidPointer(p3);
-console.log(p3, JSON.stringify(pointer3.level));
+console.log(p3, JSON.stringify(pointer3));
 console.log(JSONR.parse(example7, pointer3));
 
 // const RapidJSON = require("@ikonopistsev/node-rapidjson");
