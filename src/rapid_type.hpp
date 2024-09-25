@@ -17,5 +17,6 @@ using PoolAllocatorType =
 using DocumentAllocator = std::unique_ptr<PoolAllocatorType>;
 using DocumentPtr = std::unique_ptr<rapidjson::Document>;
 using SchemaDocumentPtr = std::unique_ptr<rapidjson::SchemaDocument>;
+using SchemaValidatortPtr = std::unique_ptr<rapidjson::SchemaValidator>;
 
 } // namespace rapid

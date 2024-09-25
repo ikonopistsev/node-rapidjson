@@ -8,6 +8,7 @@ class Schema final
     : public Napi::ObjectWrap<Schema>
 {
     SchemaDocumentPtr self_;
+    SchemaValidatortPtr validator_;
     Napi::ObjectReference docRef_;
     std::string schemaPointer_{};
     std::string validateKeyword_{};

@@ -26,8 +26,10 @@ Napi::Value Schema::parse(const Napi::CallbackInfo& i)
     try {
         auto& document = schemaDoc();
         auto result = document.parse(i);
-        if (result)
+        if (result) {
             self_.reset(new rapidjson::SchemaDocument{document});
+            validator_.reset(new rapidjson::SchemaValidator{*self_});
+        }
         return Napi::Boolean::New(env, result);
     } catch (const std::exception& e) {
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
@@ -58,7 +60,7 @@ void Schema::saveLastError(const rapidjson::SchemaValidator& validator,
 Napi::Value Schema::validate(const Napi::CallbackInfo& i)
 {
     auto env = i.Env();
-    if (!self_)
+    if (!(self_ && validator_))
     {
         Napi::TypeError::New(env, "missing schema")
             .ThrowAsJavaScriptException();
@@ -90,12 +92,12 @@ Napi::Value Schema::validate(const Napi::CallbackInfo& i)
         return env.Undefined();
     }
 
+    validator_->Reset();
     // теперь мы точно знаем что это документ
     auto doc = Napi::ObjectWrap<Document>::Unwrap(someObject);
-    rapidjson::SchemaValidator validator(*self_);
-    auto result = doc->Accept(validator);
+    auto result = doc->Accept(*validator_);
     if (!result)
-        saveLastError(validator, schemaDoc(), *doc);
+        saveLastError(*validator_, schemaDoc(), *doc);
 
     return Napi::Boolean::New(env, result);
 }

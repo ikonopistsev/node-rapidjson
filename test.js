@@ -90,7 +90,7 @@ const makeRapidPointer = RapidJSON.makeRapidPointer;
 
 const example5 = Buffer.from(JSONR.stringify({
     regularNumber: 42,
-    iWillBigInt: BigInt(9223372036854775801n),
+    iWillBigInt: BigInt(18446744073709551615n),
     iWillNumber: BigInt(9223372036854775801n),
     someArray: [
         { someId: BigInt(9223372036854775801n), someNumber: BigInt(9223372036854775801n) },
@@ -98,9 +98,11 @@ const example5 = Buffer.from(JSONR.stringify({
         { someId: BigInt(9223372036854775801n), someNumber: BigInt(9223372036854775801n) },
         { someId: BigInt(2600000000000698546n), someNumber: BigInt(9223372036854775801n) }
     ],
+    bigIntFromText: "-9223372036854775807",
+    text: "2600000000000698546",
 }));
 // only obj.bigInt and someId will be BigInt
-const p = ["#/iWillBigInt", "#/someArray/*/someId"];
+const p = ["#/iWillBigInt", "#/someArray/*/someId", "#/bigIntFromText"];
 const pointer = makeRapidPointer(p);
 console.log(p, JSON.stringify(pointer));
 console.log(JSONR.parse(example5, pointer));

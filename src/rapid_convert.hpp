@@ -4,7 +4,7 @@
 #include "rapid_fnv1a.hpp"
 #include "rapid_convert.hpp"
 #include <ranges>
-//#include <iostream>
+#include <charconv>
 
 namespace rapid {
 
@@ -20,16 +20,6 @@ auto copyout(const Napi::Value& value, A& alloc) {
     NAPI_THROW_IF_FAILED(env, status, "");
     return rapidjson::StringRef(buf, length);
 }
-
-struct RapidString final 
-{
-    Napi::Env& env;
-    Napi::Value operator()(const rapidjson::Value& elem) const
-    {
-        return Napi::String::New(env, 
-            elem.GetString(), elem.GetStringLength());               
-    }    
-};
 
 struct RapidNumber final 
 {
@@ -61,7 +51,7 @@ struct RapidConvert final
     std::size_t level;
     fnv1a hf;
 
-    Napi::Value number(const rapidjson::Value& value) const
+    bool match() const
     {
         if (level < pointer.Length())
         {
@@ -80,14 +70,45 @@ struct RapidConvert final
                     return number.Uint32Value();
                 });
                 // находим вхождения элементов
-                if (std::ranges::binary_search(pointer, hf))
-                {
-                    RapidNumber f{env};
-                    return f(value);
-                }
+                return std::ranges::binary_search(pointer, hf);
             }
         }
+        return false;
+    }
+
+    Napi::Value number(const rapidjson::Value& value) const
+    {
+        if (match())
+        {
+            RapidNumber f{env};
+            return f(value);
+        }
         return Napi::Number::New(env, value.GetDouble());
+    }
+
+    Napi::Value str(const rapidjson::Value& value) const
+    {
+        if (match())
+        {
+            auto length = value.GetStringLength();
+            std::string_view elem{value.GetString(), length};
+            if (length > 1) {
+                if (elem[0] == '-') {
+                    std::int64_t val;
+                    auto rc = std::from_chars(elem.begin(), elem.end(), val);
+                    if (rc.ec != std::errc())
+                        Napi::Error::New(env, "from_chars").ThrowAsJavaScriptException();
+                    return Napi::BigInt::New(env, val);
+                }
+            } 
+            std::uint64_t val;
+            auto rc = std::from_chars(elem.begin(), elem.end(), val);
+            if (rc.ec != std::errc())
+                Napi::Error::New(env, "from_chars").ThrowAsJavaScriptException();
+            return Napi::BigInt::New(env, val);
+        }
+        return Napi::String::New(env, 
+            value.GetString(), value.GetStringLength());
     }
 
     Napi::Value operator()(const rapidjson::Value& value) const;
@@ -158,8 +179,7 @@ Napi::Value RapidConvert::operator()(const rapidjson::Value& value) const
             return f(value);
         };
         case rapidjson::kStringType: {
-            RapidString f{env};
-            return f(value);
+            return str(value);
         }
         case rapidjson::kNumberType: {
             return number(value);
