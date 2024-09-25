@@ -6,6 +6,7 @@
 #include <cmath>
 #include <ranges>
 #include <napi.h>
+#include <iostream>
 
 using namespace std::string_view_literals;
 
@@ -98,39 +99,25 @@ Napi::Value Document::getResult(const Napi::CallbackInfo& i)
     if (i.Length() == 1)
     {
         auto& arg0 = i[0];
-        // аргумент должен быть объектом
+        // аргумент должен быть массивом
+        // массив должен быть отсортирован
         if (arg0.IsArray())
         {
             auto arr = arg0.As<Napi::Array>();
-            // Создаем диапазон индексов от 0 до Length
-            auto idx = std::views::iota(0u, arr.Length());
-            // Создаем трансформированный диапазон значений
-            auto pointer = idx | std::views::transform([&arr](auto index) {
-                auto number = arr.Get(index).ToNumber();
-                return number.Uint32Value();
-            });
-            // объявляем функтор проверки пути с использованием std::ranges::any_of
-            auto fn = [&](auto f) {
-                return std::ranges::binary_search(pointer, f);
-            };
-
-            auto f = convert(env, fn);
-            return f(self_.get());
+            //std::cout << "Document::getResult" << std::endl;
+            return getResult(env, arr, 0);
         }
     }
 
-    auto false_fn = [](...) {
-        return false;
-    };
-    auto df = convert(env, false_fn);
-    return df(self_.get());
+    auto arr = Napi::Array::New(env, 0);
+    //std::cout << "Document::getResult -1 " << arr.Length() << std::endl;
+    return getResult(env, arr, 1);
 }
 
-Napi::Value Document::getSchemaResult(const Napi::CallbackInfo& i)
+Napi::Value Document::getResult(Napi::Env& env, Napi::Array& pointer, std::size_t level) const
 {
-    auto env = i.Env();
-
-    return Napi::String::New(env, "Document::getSchemaResult");
+    auto f = convert(env, pointer, level);
+    return f(self_.get());
 }
 
 void Document::Init(Napi::Env env, Napi::Object exports)
@@ -143,6 +130,7 @@ void Document::Init(Napi::Env env, Napi::Object exports)
         InstanceMethod("parseMessage", &Document::parseMessage),
         InstanceMethod("parse", &Document::parse),
         InstanceMethod("getResult", &Document::getResult),
+        InstanceMethod("get", &Document::getResult)
     });
     ctor = Napi::Persistent(func);
     ctor.SuppressDestruct();

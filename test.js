@@ -17,7 +17,7 @@ const example1 = {
 const example1text = JSONR.stringify(example1);
 console.log(example1text);
 const example1parsed = JSONR.parse(example1text);
-console.log(example1parsed)
+console.log(example1parsed);
 
 // DEMO2
 
@@ -33,7 +33,7 @@ const schemaExample = Buffer.from(JSON.stringify({
       numbers: {
         type: "array",
         minItems: 5,
-        items: { types: "number", format: "bigint" }
+        items: { types: "number" }
       }    
     }
 }));
@@ -99,11 +99,28 @@ const example5 = Buffer.from(JSONR.stringify({
         { someId: BigInt(2600000000000698546n), someNumber: BigInt(9223372036854775801n) }
     ],
 }));
-
 // only obj.bigInt and someId will be BigInt
-const pointer = makeRapidPointer(["#/iWillBigInt", "#/someArray/*/someId"]);
+const p = ["#/iWillBigInt", "#/someArray/*/someId"];
+const pointer = makeRapidPointer(p);
+console.log(p, JSON.stringify(pointer.level));
 console.log(JSONR.parse(example5, pointer));
+
+const example6 = Buffer.from(JSONR.stringify([
+    BigInt(9223372036854775801n),
+    BigInt(2600000000000698546n)
+]));
   
+const p2 = ["#/*"];
+const pointer2 = makeRapidPointer(p2);
+console.log(p2, JSON.stringify(pointer2.level));
+console.log(JSONR.parse(example6, pointer2));
+
+const example7 = Buffer.from(JSONR.stringify(BigInt(9223372036854775801n)));
+const p3 = ["#"];
+const pointer3 = makeRapidPointer(p3);
+console.log(p3, JSON.stringify(pointer3.level));
+console.log(JSONR.parse(example7, pointer3));
+
 // const RapidJSON = require("@ikonopistsev/node-rapidjson");
 // const RapidParser = RapidJSON.RapidParser;
 // const makeRapidPointer = RapidJSON.makeRapidPointer;
@@ -116,56 +133,3 @@ console.log(JSONR.parse(example5, pointer));
 // // parsed as Number // 2600000000000698400
 // const array2 = JSONR.parse(JSONR.stringify([bigintValue]));
 // console.log(array2[0]);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// const arrayPointer = makeRapidPointer(["#/*"]);
-// const bigintValue = BigInt(2600000000000698546n);
-// const array = JSONMOU.parse(JSONMOU.stringify([bigintValue]), arrayPointer);
-// console.log(array[0]);
-
-// console.log(JSONMOU.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, 
-//         -1.0000000000000002, 2600000000000698546n, -2600000000000698546n]));
-// console.log(JSONMOU.stringify([0.0, 5, 4.9999, -3.00001, -0.23234234e-32, Number.MAX_SAFE_INTEGER, -1.0000000000000002]));
-
-// const int64max = 9007199254740991;
-// console.log(JSONMOU.stringify(int64max));
-// console.log(JSON.stringify(int64max));
-
-// let json = {
-//     "firstName": "Иван",
-//     "lastName": "Иванов",
-//     "address": {
-//         "streetAddress": "Московское ш., 101, кв.101",
-//         "city": "Ленинград",
-//         "postalCode": 101101
-//     },
-//     "phoneNumbers": [
-//         "812 123-1234",
-//         "916 123-4567"
-//     ],
-//     someNumbers:[
-//         0, 12,34.5,643.00000001, 0.000000312e-2, -Infinity
-//     ]
-// }
-
-// const t1 = JSONMOU.stringify(JSONMOU.parse(JSONMOU.stringify(json)));
-// const t2 = JSONMOU.stringify(JSON.parse(JSONMOU.stringify(json)));
-// console.log(t1);
-// console.log(t2);
-// console.log(t2 == t1);

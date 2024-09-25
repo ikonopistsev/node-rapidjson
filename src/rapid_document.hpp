@@ -57,10 +57,7 @@ public:
 
     Napi::Value getResult(const Napi::CallbackInfo& i);
 
-    // метод получения результатов с учетом схемы
-    // используется для преобразования типов
-    // в основном Number to BigInt
-    Napi::Value getSchemaResult(const Napi::CallbackInfo& i);
+    Napi::Value getResult(Napi::Env& env, Napi::Array& pointer, std::size_t level) const;
     
     static void Init(Napi::Env env, Napi::Object exports);
 };    
