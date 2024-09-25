@@ -47,6 +47,7 @@ for (let i = 0; i < count; ++i) {
 console.log("JSON", (new Date() - t) / 1000.0, "ms");
 
 const rapidPointer = makeRapidPointer(["#/iWillBigInt", "#/someArray/*/someId", "#/regularNumber"]).level;
+//const rapidPointer = makeRapidPointer(["#/regularNumber"]).level;
 let j = BigInt(0);
 
 t = new Date();
@@ -83,6 +84,7 @@ function parse64(val, fields) {
 
 
 const fields = [ "iWillBigInt", "someId", "regularNumber" ];
+//const fields = [ "regularNumber" ];
 
 let r = BigInt(0);
 t = new Date();

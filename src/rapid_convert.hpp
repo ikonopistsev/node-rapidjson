@@ -34,50 +34,23 @@ struct RapidString final
 struct RapidNumber final 
 {
     Napi::Env& env;
-    bool match{false};
-
-    Napi::Value as_number(const rapidjson::Value& elem)
-    {
-        auto val = elem.GetDouble();
-        if (!match) {
-            return Napi::Number::New(env, val);
-        } 
-        else if (elem.IsLosslessDouble())
-        {
-            return (val < 0) ?
-                Napi::BigInt::New(env, elem.GetInt64()) :
-                Napi::BigInt::New(env, elem.GetUint64());
-        }
-    
-        Napi::Error::New(env, "is number").ThrowAsJavaScriptException(); 
-        return env.Undefined();
-    }
-
     Napi::Value operator()(const rapidjson::Value& elem)
     {
         if (elem.IsUint64()) {
             auto val = elem.GetUint64();
-            if (match)
-                return Napi::BigInt::New(env, val);
-            return Napi::Number::New(env, val);
+            return Napi::BigInt::New(env, val);
         } else if (elem.IsInt64()) {
             auto val = elem.GetInt64();
-            if (match)
-                return Napi::BigInt::New(env, val);
-            return Napi::Number::New(env, val);
+            return Napi::BigInt::New(env, val);
         } else if (elem.IsUint()) {
             auto val = elem.GetUint();
-            if (match)
-                return Napi::BigInt::New(env, static_cast<std::uint64_t>(val));
-            return Napi::Number::New(env, val);
+            return Napi::BigInt::New(env, static_cast<std::uint64_t>(val));
         } else if (elem.IsInt()) {
             auto val = elem.GetInt();
-            if (match)
-                return Napi::BigInt::New(env, static_cast<std::int64_t>(val));
-            return Napi::Number::New(env, val);
+            return Napi::BigInt::New(env, static_cast<std::int64_t>(val));
+        } else {
+            return Napi::Number::New(env, elem.GetDouble());
         }
-        
-        return as_number(elem);
     }
 };
 
@@ -88,7 +61,35 @@ struct RapidConvert final
     std::size_t level;
     fnv1a hf;
 
-    bool match() const;
+    Napi::Value number(const rapidjson::Value& value) const
+    {
+        if (level < pointer.Length())
+        {
+            //std::cout << "RapidConvert::match" << level << " " << length << std::endl;
+            // получаем уровень
+            auto val = pointer.Get(level);
+            // кастуем к массиву
+            auto arr = val.As<Napi::Array>();
+            if (arr.Length()) 
+            {
+                // Создаем диапазон индексов от 0 до Length
+                auto idx = std::views::iota(0u, arr.Length());
+                // Создаем трансформированный диапазон значений
+                auto pointer = idx | std::views::transform([&arr](auto index) {
+                    auto number = arr.Get(index).ToNumber();
+                    return number.Uint32Value();
+                });
+                // находим вхождения элементов
+                if (std::ranges::binary_search(pointer, hf))
+                {
+                    RapidNumber f{env};
+                    return f(value);
+                }
+            }
+        }
+        return Napi::Number::New(env, value.GetDouble());
+    }
+
     Napi::Value operator()(const rapidjson::Value& value) const;
 };
 
@@ -137,34 +138,6 @@ struct RapidArray final
     }
 };
 
-bool RapidConvert::match() const 
-{
-    auto length = pointer.Length();
-    if (level < length)
-    {
-        //std::cout << "RapidConvert::match" << level << " " << length << std::endl;
-        // получаем уровень
-        auto val = pointer.Get(level);
-        // кастуем к массиву
-        auto arr = val.As<Napi::Array>();
-        if (arr.Length()) 
-        {
-            // Создаем диапазон индексов от 0 до Length
-            auto idx = std::views::iota(0u, arr.Length());
-            // Создаем трансформированный диапазон значений
-            auto pointer = idx | std::views::transform([&arr](auto index) {
-                auto number = arr.Get(index).ToNumber();
-                return number.Uint32Value();
-            });
-            // находим вхождения элементов
-            return std::ranges::binary_search(pointer, hf);
-        }
-    } 
-
-    //std::cout << "RapidConvert::match " << level << " false" << std::endl;
-    return false;
-}
-
 Napi::Value RapidConvert::operator()(const rapidjson::Value& value) const
 {
     switch (value.GetType()) {
@@ -189,8 +162,7 @@ Napi::Value RapidConvert::operator()(const rapidjson::Value& value) const
             return f(value);
         }
         case rapidjson::kNumberType: {
-            RapidNumber f{env, match()};
-            return f(value);
+            return number(value);
         }
         default: ;
     }
