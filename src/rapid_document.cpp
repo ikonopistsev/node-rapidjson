@@ -77,8 +77,6 @@ Napi::Value Document::parse(const Napi::CallbackInfo& i)
     }
     
     try {
-        // очищаем память
-        self_.clear();
         // вычитываем json из аргумента
         auto buffer = arg0.As<Napi::Buffer<char>>();
         return Napi::Boolean::New(env, self_.parse(buffer.Data(), buffer.Length()));

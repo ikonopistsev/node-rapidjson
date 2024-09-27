@@ -88,7 +88,7 @@ if (!schema.validate(document)) {
 
 const makeRapidPointer = RapidJSON.makeRapidPointer;
 
-const example5 = Buffer.from(JSONR.stringify({
+const example5 = JSONR.stringify({
     regularNumber: 42,
     iWillBigInt: BigInt(18446744073709551615n),
     iWillNumber: BigInt(9223372036854775801n),
@@ -100,10 +100,11 @@ const example5 = Buffer.from(JSONR.stringify({
     ],
     bigIntFromText: "-9223372036854775807",
     text: "2600000000000698546",
-}));
+});
 // only obj.bigInt and someId will be BigInt
 const p = ["#/iWillBigInt", "#/someArray/*/someId", "#/bigIntFromText"];
 const pointer = makeRapidPointer(p);
+console.log(example5);
 console.log(p, JSON.stringify(pointer));
 console.log(JSONR.parse(example5, pointer));
 

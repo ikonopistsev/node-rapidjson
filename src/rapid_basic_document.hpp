@@ -16,8 +16,6 @@ public:
 
     void create(std::size_t chunkSize);
 
-    void clear();
-
     bool parse(const char* json, std::size_t size);
 
     bool accept(rapidjson::SchemaValidator& v) const

@@ -88,27 +88,27 @@ struct RapidConvert final
 
     Napi::Value str(const rapidjson::Value& value) const
     {
+        auto p = value.GetString();
+        auto length = value.GetStringLength();
         if (match())
         {
-            auto length = value.GetStringLength();
-            std::string_view elem{value.GetString(), length};
+            auto end = p + length;
             if (length > 1) {
-                if (elem[0] == '-') {
+                if ('-' == *p) {
                     std::int64_t val;
-                    auto rc = std::from_chars(elem.begin(), elem.end(), val);
+                    auto rc = std::from_chars(p, end, val);
                     if (rc.ec != std::errc())
                         Napi::Error::New(env, "from_chars").ThrowAsJavaScriptException();
                     return Napi::BigInt::New(env, val);
                 }
             } 
             std::uint64_t val;
-            auto rc = std::from_chars(elem.begin(), elem.end(), val);
+            auto rc = std::from_chars(p, end, val);
             if (rc.ec != std::errc())
                 Napi::Error::New(env, "from_chars").ThrowAsJavaScriptException();
             return Napi::BigInt::New(env, val);
         }
-        return Napi::String::New(env, 
-            value.GetString(), value.GetStringLength());
+        return Napi::String::New(env, p, length);
     }
 
     Napi::Value operator()(const rapidjson::Value& value) const;
@@ -148,7 +148,7 @@ struct RapidArray final
         //std::cout << "RapidArray " << size << std::endl;
         auto res = Napi::Array::New(env, size);
         auto hashval = hf("*");
-        for (std::size_t i = 0; i < size; ++i) 
+        for (auto i = 0u; i < size; ++i) 
         {
             auto& val = elem[i];
             //std::cout << "RapidArray " << i << std::endl;

@@ -3,6 +3,8 @@ const RapidDocument = RapidJSON.Document;
 const RapidSchema = RapidJSON.Schema;
 const document = new RapidDocument(16*1024);
 const makeRapidPointer = RapidJSON.makeRapidPointer;
+const RapidParser = RapidJSON.RapidParser;
+const rapidParser = new RapidParser();
 // const Ajv = require("ajv");
 
 const jsonSchama = {
@@ -143,14 +145,10 @@ for (let i = 0; i < count; ++i) {
 console.log("js", (new Date() - t) / 1000.0, "ms");
 
 let v = Number(0);
-
 t = new Date();
 
 for (let i = 0; i < count; ++i) {
-    if (!document.parse(testData[i % testDataSize])) {
-        throw new Error(`document: ${document.parseMessage()} offset:${document.parseOffset()}`);
-    }
-    const rc = document.get();
+    const rc = rapidParser.parse(testData[i % testDataSize]);
     v += rc.iWillNumber;
 }
 

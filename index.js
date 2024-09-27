@@ -59,23 +59,19 @@ nativeModule.RapidPointer = RapidPointer
 nativeModule.makeRapidPointer = (items) => new RapidPointer(items);
 
 class RapidParser {   
-    constructor() {
-        this.document = new nativeModule.Document();
+    constructor(memorySize) {
+        this.document = new nativeModule.Document(memorySize);
     }
 
     parse(json, pointer) {
-        const { document } = this;
-        if (typeof json !== "buffer") {
+        if (typeof json === "string") {
             json = Buffer.from(json);
         }
-        
-        document.parse(json);
-
-        if (document.hasParseError()) {
+        const { document } = this;
+        if (!document.parse(json)) {
             throw new Error(`${document.parseMessage()} offset:${document.parseOffset()}`);
         }
-
-        return (pointer instanceof RapidPointer) ?
+        return (pointer && (pointer instanceof RapidPointer)) ?
             document.getResult(pointer) :
             document.getResult();
     }

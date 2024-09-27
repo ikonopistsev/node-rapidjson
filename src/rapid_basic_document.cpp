@@ -26,14 +26,9 @@ void BasicDocument::create(std::size_t chunkSize)
     self_.reset(new rapidjson::Document{mem_.get()});
 }
 
-void BasicDocument::clear()
-{
-    mem_->Clear();
-}
-
 bool BasicDocument::parse(const char* json, std::size_t size)
 {
-    self_.reset(new rapidjson::Document{mem_.get()});
+    mem_->Clear();
     // парсим json
     self_->Parse(json, size);
     // возвращаем результат парсинга
